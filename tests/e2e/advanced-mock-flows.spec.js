@@ -447,16 +447,18 @@ test('hides quick actions when the issue is already assigned, already in progres
   await page.close();
 });
 
-test('hides attachment and pull request sections when those display settings are disabled', async ({extensionApp, optionsPage, servers}) => {
+test('hides attachment and pull request sections when those layout blocks are disabled @mock-only', async ({extensionApp, optionsPage, servers}) => {
   const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
-  if (target.mode === 'mock') {
-    await servers.jira.setScenario('editable');
-  }
+  test.skip(target.mode !== 'mock', 'Content block visibility is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
   await configureExtension(optionsPage, baseConfig(servers, target, {
-    displayFields: {
-      comments: false,
-      attachments: false,
-      pullRequests: false,
+    tooltipLayout: {
+      row1: ['issueType', 'status', 'priority'],
+      row2: ['epicParent', 'sprint', 'affects', 'fixVersions'],
+      row3: ['environment', 'labels'],
+      contentBlocks: ['description', 'comments'],
+      people: ['reporter', 'assignee'],
     },
   }));
 
@@ -465,5 +467,48 @@ test('hides attachment and pull request sections when those display settings are
 
   await expect(popup).not.toContainText('Attachments');
   await expect(popup).not.toContainText('Pull Requests');
+  await page.close();
+});
+
+test('shows attachments when the persisted tooltip layout enables the block @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Attachment layout persistence is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  await configureExtension(optionsPage, baseConfig(servers, target, {
+    displayFields: {
+      attachments: false,
+    },
+    tooltipLayout: {
+      row1: ['issueType', 'status', 'priority'],
+      row2: ['epicParent', 'sprint', 'affects', 'fixVersions'],
+      row3: ['environment', 'labels'],
+      contentBlocks: ['description', 'attachments', 'comments'],
+      people: ['reporter', 'assignee'],
+    },
+  }));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const attachments = page.locator('[data-content-block="attachments"]');
+
+  await expect(attachments).toContainText('Attachments');
+  await expect(attachments.locator('._JX_thumb')).toHaveCount(4);
+  await page.close();
+});
+
+test('uses legacy display fields when no tooltip layout was persisted @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Legacy attachment configuration is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  await configureExtension(optionsPage, baseConfig(servers, target, {
+    displayFields: {
+      attachments: true,
+    },
+  }));
+  await optionsPage.evaluate(async () => chrome.storage.sync.remove('tooltipLayout'));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  await expect(page.locator('[data-content-block="attachments"] ._JX_thumb')).toHaveCount(4);
   await page.close();
 });
