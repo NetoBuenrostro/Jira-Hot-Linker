@@ -266,7 +266,7 @@ test('keeps editable custom fields visible when they are currently empty @mock-o
   test.skip(target.mode !== 'mock', 'Empty custom field placeholder coverage is deterministic in mocked mode only.');
 
   await servers.jira.setScenario('editable');
-  await patchJsonResponse(optionsPage.context(), target.instanceUrl, '/rest/api/2/issue/[^?]+(?:\\?.*)?$', payload => ({
+  await patchJsonResponse(optionsPage.context(), target.instanceUrl, '/rest/api/2/issue/[^?]+\\?fields=[^#]+$', payload => ({
     ...payload,
     names: {
       ...payload.names,
@@ -307,6 +307,75 @@ test('keeps editable custom fields visible when they are currently empty @mock-o
   await expect(popup.root).toContainText('Customer Tier: --');
   await expect(page.locator('button[data-field-key="customfield_22222"]')).toBeVisible();
 
+  await page.close();
+});
+
+test('clears a selected single-value custom field @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Custom field clearing is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  let customFieldCleared = false;
+  const customFieldUpdatePayloads = [];
+  extensionApp.context.on('request', request => {
+    const pathname = new URL(request.url()).pathname;
+    if (request.method() !== 'PUT' || !/^\/rest\/api\/2\/issue\/[^/]+$/.test(pathname)) {
+      return;
+    }
+    const payload = request.postDataJSON();
+    if (Object.prototype.hasOwnProperty.call(payload?.fields || {}, 'customfield_22222')) {
+      customFieldUpdatePayloads.push(payload);
+      customFieldCleared = payload.fields.customfield_22222 === null;
+    }
+  });
+  await patchJsonResponse(optionsPage.context(), target.instanceUrl, '/rest/api/2/issue/[^?]+\\?fields=[^#]+$', payload => ({
+    ...payload,
+    names: {
+      ...payload.names,
+      customfield_22222: 'Customer Tier',
+    },
+    fields: {
+      ...payload.fields,
+      customfield_22222: customFieldCleared ? null : {id: '20001', value: 'Gold'},
+    },
+  }));
+  await patchJsonResponse(optionsPage.context(), target.instanceUrl, '/rest/api/2/issue/[^/]+/editmeta(?:\\?.*)?$', payload => ({
+    ...payload,
+    fields: {
+      ...payload.fields,
+      customfield_22222: {
+        required: false,
+        name: 'Customer Tier',
+        key: 'customfield_22222',
+        schema: {
+          type: 'option',
+          custom: 'com.atlassian.jira.plugin.system.customfieldtypes:select',
+        },
+        operations: ['set'],
+        allowedValues: [
+          {id: '20001', value: 'Gold'},
+          {id: '20002', value: 'Silver'},
+        ],
+      },
+    },
+  }));
+  await configureExtension(optionsPage, buildExtensionConfig(servers, {
+    customFields: [{fieldId: 'customfield_22222', row: 2}],
+  }, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+
+  await expect(popup.root).toContainText('Customer Tier: Gold');
+  await popup.editButton('customfield_22222').click();
+  const clearOption = popup.editOptions('customfield_22222').filter({hasText: 'Clear Customer Tier'});
+  await expect(clearOption).toBeVisible();
+  await clearOption.click();
+  await popup.editInput('customfield_22222').press('Enter');
+
+  await expect.poll(() => customFieldUpdatePayloads.length).toBe(1);
+  expect(customFieldUpdatePayloads[0].fields.customfield_22222).toBeNull();
+  await expect(popup.root).toContainText('Customer Tier: --');
   await page.close();
 });
 

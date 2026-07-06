@@ -8,12 +8,30 @@ export function createContentFieldCapabilityHelpers(options) {
   const instanceUrl = options?.instanceUrl;
   const transitionOptionsCache = options?.transitionOptionsCache;
 
-  function pickSprintFieldId(issueData, sprintFieldIds) {
-    const populatedFieldId = (sprintFieldIds || []).find(fieldId => {
+  function looksLikeSprintField(fieldId, fieldMeta, names = {}) {
+    const schemaCustom = String(fieldMeta?.schema?.custom || '').toLowerCase();
+    const schemaType = String(fieldMeta?.schema?.type || '').toLowerCase();
+    const displayName = String(names[fieldId] || fieldMeta?.name || '').toLowerCase();
+    return schemaCustom.includes('gh-sprint') ||
+      schemaType === 'sprint' ||
+      displayName.includes('sprint');
+  }
+
+  function pickSprintFieldId(issueData, sprintFieldIds, editMetaFields = {}) {
+    const names = issueData?.names || {};
+    const editMetaSprintFieldIds = Object.keys(editMetaFields || {}).filter(fieldId => {
+      return looksLikeSprintField(fieldId, editMetaFields[fieldId], names);
+    });
+    const candidateFieldIds = [...new Set([
+      ...(sprintFieldIds || []),
+      ...editMetaSprintFieldIds,
+    ].filter(Boolean))];
+    const populatedFieldId = candidateFieldIds.find(fieldId => {
       const value = issueData?.fields?.[fieldId];
       return Array.isArray(value) ? value.length > 0 : !!value;
     });
-    return populatedFieldId || sprintFieldIds?.[0] || '';
+    const editableFieldId = candidateFieldIds.find(fieldId => !!editMetaFields?.[fieldId]);
+    return populatedFieldId || editableFieldId || candidateFieldIds[0] || '';
   }
 
   async function getIssueEditMeta(issueKey) {
@@ -41,7 +59,7 @@ export function createContentFieldCapabilityHelpers(options) {
     let resolvedFieldKey = fieldKey;
     if (fieldKey === 'sprint') {
       const sprintFieldIds = await getSprintFieldIds(instanceUrl);
-      resolvedFieldKey = pickSprintFieldId(issueData, sprintFieldIds);
+      resolvedFieldKey = pickSprintFieldId(issueData, sprintFieldIds, editMeta.fields);
     }
     const catalogField = (await getAllFields(instanceUrl)).find(field => field?.id === resolvedFieldKey) || null;
     const editMetaField = editMeta.fields?.[resolvedFieldKey];
@@ -59,14 +77,7 @@ export function createContentFieldCapabilityHelpers(options) {
       ...editMetaField,
       schema: editMetaField?.schema || catalogField?.schema || {}
     };
-    const schemaCustom = String(mergedFieldMeta?.schema?.custom || '').toLowerCase();
-    const schemaType = String(mergedFieldMeta?.schema?.type || '').toLowerCase();
-    const displayName = String(names[resolvedFieldKey] || mergedFieldMeta?.name || '').toLowerCase();
-    const looksLikeSprint = fieldKey === 'sprint' ||
-      schemaCustom.includes('gh-sprint') ||
-      schemaType === 'sprint' ||
-      displayName.includes('sprint');
-    if (fieldKey === 'sprint' && !looksLikeSprint) {
+    if (fieldKey === 'sprint' && !looksLikeSprintField(resolvedFieldKey, mergedFieldMeta, names)) {
       return {
         editable: false,
         fieldKey: resolvedFieldKey,

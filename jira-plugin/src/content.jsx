@@ -48,8 +48,17 @@ let allFieldsPromise;
 function getAllFields(instanceUrl) {
   if (!allFieldsPromise) {
     allFieldsPromise = get(instanceUrl + 'rest/api/2/field')
-      .then(fields => (Array.isArray(fields) ? fields : []))
-      .catch(() => []);
+      .then(fields => {
+        const normalizedFields = Array.isArray(fields) ? fields : [];
+        if (!normalizedFields.length) {
+          allFieldsPromise = null;
+        }
+        return normalizedFields;
+      })
+      .catch(() => {
+        allFieldsPromise = null;
+        return [];
+      });
   }
   return allFieldsPromise;
 }
@@ -3055,9 +3064,9 @@ async function mainAsyncLocal() {
     return getCachedValue(userPickerSearchCache, normalizedQuery, () => fetchUserPickerResults(normalizedQuery));
   }
 
-  function buildClearUserOption(label = 'Clear value') {
+  function buildClearFieldOption(label = 'Clear value') {
     return buildEditOption('__clear__', label, {
-      metaText: 'Remove the current user',
+      metaText: 'Remove the current value',
       rawValue: null,
     });
   }
@@ -3480,7 +3489,7 @@ async function mainAsyncLocal() {
     }
 
     const selectedOption = selectedOptions[0];
-    if (!selectedOption) {
+    if (!selectedOption || selectedOption.id === '__clear__' || selectedOption.rawValue === null) {
       await requestJson('PUT', `${INSTANCE_URL}rest/api/2/issue/${issueData.key}`, {
         fields: {
           [fieldId]: null
@@ -3585,6 +3594,14 @@ async function mainAsyncLocal() {
 
   async function saveTempoAccountSelection(issueData, fieldId, selectedOptions) {
     const selectedOption = selectedOptions[0];
+    if (selectedOption?.id === '__clear__' || selectedOption?.rawValue === null) {
+      await requestJson('PUT', `${INSTANCE_URL}rest/api/2/issue/${issueData.key}`, {
+        fields: {
+          [fieldId]: null
+        }
+      });
+      return;
+    }
     if (!selectedOption?.id) {
       throw new Error('Pick an account before saving');
     }
@@ -3749,6 +3766,7 @@ async function mainAsyncLocal() {
       const currentOption = currentAccount
         ? buildTempoAccountOption(currentAccount)
         : null;
+      const clearOption = buildClearFieldOption(`Clear ${fieldName}`);
       return {
         fieldKey: fieldId,
         editorType: 'tempo-account-search',
@@ -3761,11 +3779,14 @@ async function mainAsyncLocal() {
         currentSelections: currentOption ? [currentOption] : [],
         initialInputValue: '',
         inputPlaceholder: 'Search accounts',
-        loadOptions: async () => mergeEditOptions(currentOption ? [currentOption] : [], await searchTempoAccounts('', issueData)),
-        searchOptions: query => searchTempoAccounts(query, issueData),
+        loadOptions: async () => mergeEditOptions([clearOption], mergeEditOptions(currentOption ? [currentOption] : [], await searchTempoAccounts('', issueData))),
+        searchOptions: async query => mergeEditOptions([clearOption], await searchTempoAccounts(query, issueData)),
         save: selectedOptions => saveTempoAccountSelection(issueData, fieldId, selectedOptions),
         successMessage: selectedOptions => {
           const selectedOption = selectedOptions[0];
+          if (selectedOption?.id === '__clear__') {
+            return `${fieldName} cleared`;
+          }
           return selectedOption?.label
             ? `${fieldName} set to ${selectedOption.label}`
             : `${fieldName} updated`;
@@ -3787,6 +3808,7 @@ async function mainAsyncLocal() {
       const currentSelections = currentEntries
         .map(buildUserFieldOption)
         .filter(Boolean);
+      const clearOption = isMultiValue ? null : buildClearFieldOption(`Clear ${fieldName}`);
       return {
         fieldKey: fieldId,
         editorType: 'user-search',
@@ -3799,11 +3821,15 @@ async function mainAsyncLocal() {
         currentSelections,
         initialInputValue: '',
         inputPlaceholder: 'Search users',
-        loadOptions: async () => loadCustomUserFieldOptions(fieldId, issueData, currentSelections),
-        searchOptions: async query => loadCustomUserFieldOptions(fieldId, issueData, currentSelections, query),
+        loadOptions: async () => clearOption
+          ? mergeEditOptions([clearOption], await loadCustomUserFieldOptions(fieldId, issueData, currentSelections))
+          : loadCustomUserFieldOptions(fieldId, issueData, currentSelections),
+        searchOptions: async query => clearOption
+          ? mergeEditOptions([clearOption], await loadCustomUserFieldOptions(fieldId, issueData, currentSelections, query))
+          : loadCustomUserFieldOptions(fieldId, issueData, currentSelections, query),
         save: selectedOptions => saveUserCustomFieldSelection(issueData, fieldId, selectedOptions, isMultiValue),
         successMessage: selectedOptions => {
-          if (!selectedOptions.length) {
+          if (!selectedOptions.length || selectedOptions[0]?.id === '__clear__') {
             return `${fieldName} cleared`;
           }
           return isMultiValue
@@ -3857,7 +3883,7 @@ async function mainAsyncLocal() {
 
     const isUserField = supportDescriptor.valueKind === 'user';
     const isPrimitiveField = supportDescriptor.valueKind === 'primitive';
-    const clearUserOption = isUserField ? buildClearUserOption(`Clear ${fieldName}`) : null;
+    const clearOption = isMultiValue ? null : buildClearFieldOption(`Clear ${fieldName}`);
 
     if (isPrimitiveField && !isMultiValue) {
       const currentInputValue = currentValue === undefined || currentValue === null
@@ -3910,7 +3936,9 @@ async function mainAsyncLocal() {
       currentSelections,
       initialInputValue: isMultiValue ? '' : '',
       inputPlaceholder: isUserField ? 'Search users' : undefined,
-      loadOptions: async () => isUserField ? mergeEditOptions([clearUserOption], currentSelections) : allOptions,
+      loadOptions: async () => isUserField
+        ? mergeEditOptions([clearOption], currentSelections)
+        : mergeEditOptions([clearOption], allOptions),
       searchOptions: isUserField ? (async query => {
         const [pickerResults, assignableResults] = await Promise.all([
           searchUserPicker(query),
@@ -3919,7 +3947,7 @@ async function mainAsyncLocal() {
         const baseline = userPickerLocalOptionsCache.get(fieldId) || currentSelections;
         const merged = mergeEditOptions(pickerResults, mergeEditOptions(assignableResults, baseline));
         userPickerLocalOptionsCache.set(fieldId, merged);
-        return mergeEditOptions([clearUserOption], merged);
+        return mergeEditOptions([clearOption], merged);
       }) : undefined,
       save: selectedOptions => {
         const fieldValue = isMultiValue
@@ -3931,7 +3959,7 @@ async function mainAsyncLocal() {
           }
         });
       },
-      successMessage: selectedOptions => selectedOptions[0]?.id === '__clear__'
+      successMessage: selectedOptions => !selectedOptions.length || selectedOptions[0]?.id === '__clear__'
         ? `${fieldName} cleared`
         : `${fieldName} updated`
     };
@@ -6574,6 +6602,9 @@ async function mainAsyncLocal() {
     clearDescriptionStatusTimer();
     closePreviewOverlay();
     const descriptionStateSnapshot = popupState?.descriptionEditState;
+    if (popupState?.key) {
+      editMetaCache.delete(popupState.key);
+    }
     popupState = null;
     discardCommentComposerDraft().catch(() => {});
     discardDescriptionEditStateSnapshot(descriptionStateSnapshot, {deleteUploaded: true}).catch(() => {});
