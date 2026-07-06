@@ -16,12 +16,26 @@ export function createContentIssueDataHelpers(options) {
       return existing.value;
     }
 
-    const value = await buildValue();
+    const pendingValue = Promise.resolve().then(buildValue);
     cache.set(key, {
       createdAt: Date.now(),
-      value
+      value: pendingValue
     });
-    return value;
+    try {
+      const value = await pendingValue;
+      if (cache.get(key)?.value === pendingValue) {
+        cache.set(key, {
+          createdAt: Date.now(),
+          value
+        });
+      }
+      return value;
+    } catch (error) {
+      if (cache.get(key)?.value === pendingValue) {
+        cache.delete(key);
+      }
+      throw error;
+    }
   }
 
   function setCachedValue(cache, key, value) {

@@ -342,6 +342,89 @@ test('updates sprint and version fields through edit popovers', async ({extensio
   await page.close();
 });
 
+test('recovers Sprint editing after a transient field catalog failure @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Transient field catalog recovery is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  let fieldCatalogRequests = 0;
+  await patchJsonResponse(extensionApp.context, target.instanceUrl, '/rest/api/2/field(?:\\?.*)?$', payload => {
+    fieldCatalogRequests += 1;
+    return fieldCatalogRequests === 1 ? [] : payload;
+  });
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+
+  await expect.poll(() => fieldCatalogRequests).toBeGreaterThanOrEqual(2);
+  await expect(popup.editButton('sprint')).toBeVisible();
+  await popup.editButton('sprint').click();
+  await waitForOptions(popup.editOptions('sprint'), 1);
+  await expect(popup.editOptions('sprint').first()).toBeVisible();
+  await page.close();
+});
+
+test('clears Sprint with a null Jira field value @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Sprint clearing payloads are deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  const sprintUpdatePayloads = [];
+  extensionApp.context.on('request', request => {
+    const pathname = new URL(request.url()).pathname;
+    if (request.method() !== 'PUT' || !/^\/rest\/api\/2\/issue\/[^/]+$/.test(pathname)) {
+      return;
+    }
+    const payload = request.postDataJSON();
+    if (Object.prototype.hasOwnProperty.call(payload?.fields || {}, 'customfield_10020')) {
+      sprintUpdatePayloads.push(payload);
+    }
+  });
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+
+  await popup.editButton('sprint').click();
+  await waitForOptions(popup.editOptions('sprint'), 1);
+  await page.locator('._JX_edit_option[data-field-key="sprint"][data-option-id=""]').click();
+  await popup.editInput('sprint').press('Enter');
+
+  await expect.poll(() => sprintUpdatePayloads.length).toBe(1);
+  expect(sprintUpdatePayloads[0].fields.customfield_10020).toBeNull();
+  await expect(popup.root).toContainText('Sprint: --');
+  await page.close();
+});
+
+test('coalesces edit metadata requests while preserving read-only fields @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Edit metadata request behavior is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  let editMetaRequests = 0;
+  await patchJsonResponse(extensionApp.context, target.instanceUrl, '/rest/api/2/issue/[^/]+/editmeta(?:\\?.*)?$', payload => {
+    editMetaRequests += 1;
+    const fields = {...(payload.fields || {})};
+    delete fields.customfield_10020;
+    delete fields.fixVersions;
+    return {
+      ...payload,
+      fields,
+    };
+  });
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+
+  await expect(popup.editButton('summary')).toBeVisible();
+  await expect(popup.editButton('sprint')).toHaveCount(0);
+  await expect(popup.editButton('fixVersions')).toHaveCount(0);
+  expect(editMetaRequests).toBe(1);
+  await page.close();
+});
+
 test('updates time tracking estimates through the content block editor @mock-only', async ({extensionApp, optionsPage, servers}) => {
   const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
   test.skip(target.mode !== 'mock', 'Time tracking persistence is deterministic in mocked mode only.');

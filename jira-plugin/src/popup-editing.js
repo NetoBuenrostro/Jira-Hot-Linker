@@ -322,10 +322,6 @@ export function createPopupEditing(deps) {
     if (!projectKey) {
       return [];
     }
-    const sprintFieldIds = await getSprintFieldIds(INSTANCE_URL);
-    if (!sprintFieldIds.length) {
-      return [];
-    }
     const issueBoardIdsKey = readSprintBoardRefsFromIssue(issueData)
       .map(board => String(board.id || ''))
       .filter(Boolean)
@@ -611,13 +607,14 @@ export function createPopupEditing(deps) {
         loadOptions: () => getSprintOptions(issueData),
         save: async selectedOptions => {
           const option = selectedOptions[0] || buildEditOption('', 'No sprint');
-          const sprintFieldId = pickSprintFieldId(issueData, await getSprintFieldIds(INSTANCE_URL));
+          const sprintFieldId = capability.fieldKey ||
+            pickSprintFieldId(issueData, await getSprintFieldIds(INSTANCE_URL));
           if (!sprintFieldId) {
             throw new Error('Could not resolve the Sprint field');
           }
           await requestJson('PUT', `${INSTANCE_URL}rest/api/2/issue/${issueData.key}`, {
             fields: {
-              [sprintFieldId]: option.id ? (Number(option.id) || option.id) : [],
+              [sprintFieldId]: option.id ? (Number(option.id) || option.id) : null,
             },
           });
         },
