@@ -2,7 +2,7 @@ export function buildTooltipLayoutFromDisplayFields(displayFields) {
   const row1Defaults = ['issueType', 'status', 'priority'];
   const row2Defaults = ['epicParent', 'sprint', 'affects', 'fixVersions'];
   const row3Defaults = ['environment', 'labels'];
-  const contentDefaults = ['description', 'timeTracking', 'children', 'pullRequests', 'comments'];
+  const contentDefaults = ['description', 'timeTracking', 'children', 'pullRequests', 'attachments', 'comments'];
   const peopleDefaults = ['reporter', 'assignee'];
 
   const row1 = row1Defaults.filter(f => displayFields[f]);

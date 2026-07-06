@@ -22,7 +22,7 @@ import {createPopupEditing} from 'src/popup-editing';
 import {createPopupQuickActions} from 'src/popup-quick-actions';
 import {createPopupCommentComposer} from 'src/popup-comment-composer';
 import {buildJiraSearchRequestUrls, isEpicLinkField, isParentLinkField, isSprintField} from 'src/jira-issue-helpers';
-import config from 'options/config.js';
+import config, {buildTooltipLayoutFromDisplayFields} from 'options/config.js';
 import {DEFAULT_THEME_MODE, syncDocumentTheme} from 'src/theme';
 const {
   buildDescriptionEditorState,
@@ -39,7 +39,16 @@ const getInstanceUrl = async () => (await storageGet({
   instanceUrl: config.instanceUrl
 })).instanceUrl;
 
-const getConfig = async () => (await storageGet(config));
+const getConfig = async () => {
+  const [resolvedConfig, storedTooltipLayout] = await Promise.all([
+    storageGet(config),
+    storageGet('tooltipLayout')
+  ]);
+  return {
+    resolvedConfig,
+    hasStoredTooltipLayout: !!storedTooltipLayout?.tooltipLayout
+  };
+};
 
 // ── Field ID Resolution ─────────────────────────────────────────
 
@@ -338,7 +347,10 @@ async function mainAsyncLocal() {
 
   // ── Initialization & State ──────────────────────────────────
 
-  const config = await getConfig();
+  const {
+    resolvedConfig: config,
+    hasStoredTooltipLayout
+  } = await getConfig();
   const INSTANCE_URL = config.instanceUrl;
   const storedCommentSortState = await storageLocalGet({
     [COMMENT_SORT_ORDER_STORAGE_KEY]: DEFAULT_COMMENT_SORT_ORDER
@@ -394,16 +406,11 @@ async function mainAsyncLocal() {
     timeTracking: true,
     ...(config.displayFields || {})
   };
-  const tooltipLayout = config.tooltipLayout || {
-    row1: ['issueType', 'status', 'priority'],
-    row2: ['epicParent', 'sprint', 'affects', 'fixVersions'],
-    row3: ['environment', 'labels'],
-    contentBlocks: ['description', 'timeTracking', 'children', 'pullRequests', 'comments'],
-    people: ['reporter', 'assignee']
-  };
+  const tooltipLayout = hasStoredTooltipLayout
+    ? config.tooltipLayout
+    : buildTooltipLayoutFromDisplayFields(displayFields);
   const defaultContentBlocks = ['description', 'timeTracking', 'children', 'pullRequests', 'comments'];
-  const layoutContentBlocks = (tooltipLayout.contentBlocks || defaultContentBlocks)
-    .filter(k => displayFields[k] !== false);
+  const layoutContentBlocks = [...(tooltipLayout.contentBlocks || defaultContentBlocks)];
   if (displayFields.description !== false && !layoutContentBlocks.includes('description')) {
     layoutContentBlocks.unshift('description');
   }
