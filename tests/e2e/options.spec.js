@@ -75,6 +75,27 @@ test('shows quick links to docs and issue reporting in the hero header', async (
   }
 });
 
+test('expands and collapses advanced settings from anywhere in the header', async ({optionsPage}) => {
+  const form = optionsPageModel(optionsPage);
+  const toggle = form.advancedToggle;
+
+  if (await toggle.getAttribute('aria-expanded') === 'true') {
+    await toggle.click();
+  }
+
+  await toggle.getByText('Show advanced settings', {exact: true}).click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(form.hoverDepthSelect).toBeVisible();
+
+  await toggle.getByText('Hover trigger depth, modifier keys, field layout editor, custom fields, and settings sync.', {exact: true}).click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(form.hoverDepthSelect).toBeHidden();
+
+  await toggle.focus();
+  await optionsPage.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+});
+
 test('normalizes and persists a bare Jira hostname on save', async ({optionsPage, servers}) => {
   const target = requireJiraTestTarget(test, servers, {requireAuth: false});
   const form = optionsPageModel(optionsPage);

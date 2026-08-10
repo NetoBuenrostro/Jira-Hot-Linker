@@ -786,28 +786,30 @@ function ConfigPage(props) {
 
       {/* ── Advanced ────────────────────────────────────── */}
       <section className={`advancedPanel${showAdvanced ? ' advancedPanelOpen' : ''}`}>
-        <div className='advancedPanelHeader'>
+        <button
+          type='button'
+          data-testid='options-advanced-toggle'
+          className='advancedPanelHeader'
+          onClick={toggleAdvanced}
+          aria-expanded={showAdvanced}
+          aria-controls='advanced-settings-panel'
+          aria-label={showAdvanced ? 'Hide advanced settings' : 'Show advanced settings'}
+        >
           <svg className='advToggleIcon' viewBox='0 0 24 24' aria-hidden='true' focusable='false'>
             <circle cx='12' cy='12' r='3.5' />
             <path d='M12 3v3M12 18v3M4.9 4.9 7 7M17 17l2.1 2.1M3 12h3M18 12h3M4.9 19.1 7 17M17 7l2.1-2.1' />
           </svg>
-          <div className='advToggleText'>
-            <h3>Show advanced settings</h3>
-            <p>Hover trigger depth, modifier keys, field layout editor, custom fields, and settings sync.</p>
-          </div>
-          <button
-            type='button'
-            data-testid='options-advanced-toggle'
-            className='advToggleBtn'
-            onClick={toggleAdvanced}
-            aria-expanded={showAdvanced}
-          >
+          <span className='advToggleText'>
+            <span className='advToggleTitle'>Show advanced settings</span>
+            <span className='advToggleDescription'>Hover trigger depth, modifier keys, field layout editor, custom fields, and settings sync.</span>
+          </span>
+          <span className='advToggleBtn' aria-hidden='true'>
             {showAdvanced ? 'Hide' : 'Show'}
-          </button>
-        </div>
+          </span>
+        </button>
 
         {showAdvanced && (
-          <div className='advancedPanelBody'>
+          <div className='advancedPanelBody' id='advanced-settings-panel'>
             <div className='settingsGrid advancedSettingsGrid'>
           {/* ── Hover Behavior ───────────────────────────── */}
           <section className='settingsCard settingsGridFull'>

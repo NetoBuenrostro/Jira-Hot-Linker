@@ -85,6 +85,29 @@ test('shows assignee and parent search results inside their editors', async ({ex
   await page.close();
 });
 
+test('selects the top filtered single-select option with Enter @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Single-select keyboard coverage is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+
+  await popup.editButton('assignee').click();
+  await popup.editInput('assignee').fill('Morgan');
+  const topResult = popup.editOptions('assignee').first();
+  await expect(topResult).toContainText('Morgan Agent');
+  await expect(topResult).toHaveClass(/is-highlighted/);
+  await popup.editInput('assignee').press('Enter');
+
+  await expect(popup.root).toContainText('Assignee set to Morgan Agent');
+  await expect(page.locator('._JX_title_assignee_slot [title="Assignee: Morgan Agent"]')).toHaveCount(1);
+
+  await page.close();
+});
+
 test('prefers Jira internal assignee results when public user endpoints miss a candidate @mock-only', async ({extensionApp, optionsPage, servers}) => {
   const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
   test.skip(target.mode !== 'mock', 'Assignee fallback coverage is deterministic in mocked mode only.');
@@ -338,6 +361,47 @@ test('updates sprint and version fields through edit popovers', async ({extensio
   await waitForOptions(fixVersionOptions, 1);
   await setSelectedOptionIds(fixVersionOptions, originalFixVersionIds);
   await popup.editSave('fixVersions').click();
+
+  await page.close();
+});
+
+test('removes a selected fix version directly from its chip @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Fix version removal coverage is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+
+  await popup.editButton('fixVersions').click();
+  const fixVersionOptions = popup.editOptions('fixVersions');
+  await waitForOptions(fixVersionOptions, 1);
+
+  const selectedOption = page.locator('._JX_edit_option[data-field-key="fixVersions"].is-selected').first();
+  const selectedOptionId = String(await selectedOption.getAttribute('data-option-id') || '');
+  const selectedIndicator = selectedOption.locator('._JX_edit_option_selected_indicator');
+  const removeIndicator = selectedOption.locator('._JX_edit_option_remove_indicator');
+  const removeButton = popup.editRemoveButtons('fixVersions').first();
+  const selectedChip = removeButton.locator('..');
+
+  await expect(selectedIndicator).toBeVisible();
+  await expect(removeIndicator).toBeHidden();
+  await selectedOption.hover();
+  await expect(selectedIndicator).toBeHidden();
+  await expect(removeIndicator).toBeVisible();
+
+  await expect(removeButton).toHaveCSS('opacity', '0');
+  await selectedChip.hover();
+  await expect(removeButton).toHaveCSS('opacity', '1');
+  await removeButton.click();
+
+  await expect(popup.editRemoveButtons('fixVersions')).toHaveCount(0);
+  await expect(page.locator(`._JX_edit_option[data-field-key="fixVersions"][data-option-id="${selectedOptionId}"]`)).not.toHaveClass(/is-selected/);
+  await expect(popup.editSave('fixVersions')).toBeEnabled();
+  await popup.editSave('fixVersions').click();
+  await expect(popup.root).toContainText('Fix version: --');
 
   await page.close();
 });

@@ -34,7 +34,10 @@
                     {{#showSelectedValues}}
                     <div class="_JX_edit_selected_values">
                         {{#selectedValues}}
-                        <span class="_JX_edit_selected_chip" title="{{title}}">{{label}}</span>
+                        <span class="_JX_edit_selected_chip" title="{{title}}">
+                            <span class="_JX_edit_selected_label">{{label}}</span>
+                            <button class="_JX_edit_selected_remove" data-testid="jira-popup-edit-remove-{{fieldKey}}" type="button" data-field-key="{{fieldKey}}" data-option-id="{{id}}" title="{{removeTitle}}" aria-label="{{removeTitle}}" {{#removeDisabled}}disabled{{/removeDisabled}}><svg width="12" height="12" viewBox="0 0 24 24" focusable="false" role="presentation"><path fill="currentColor" d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.3l6.3 6.29 6.29-6.3z"></path></svg></button>
+                        </span>
                         {{/selectedValues}}
                     </div>
                     {{/showSelectedValues}}
@@ -42,8 +45,8 @@
                     {{#showDropdown}}<div class="_JX_edit_dropdown">
                         {{#hasOptions}}
                         {{#options}}
-                        <button class="_JX_edit_option{{#isSelected}} is-selected{{/isSelected}}" data-testid="jira-popup-edit-option-assignee" type="button" data-field-key="assignee" data-option-id="{{id}}" title="{{title}}">
-                            {{#isMultiSelect}}<span class="_JX_edit_option_check">{{#isSelected}}✓{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
+                        <button class="_JX_edit_option{{#isSelected}} is-selected{{/isSelected}}{{#isHighlighted}} is-highlighted{{/isHighlighted}}" data-testid="jira-popup-edit-option-assignee" type="button" data-field-key="assignee" data-option-id="{{id}}" title="{{title}}">
+                            {{#isMultiSelect}}<span class="_JX_edit_option_check" aria-hidden="true">{{#isSelected}}<span class="_JX_edit_option_selected_indicator">✓</span><span class="_JX_edit_option_remove_indicator">×</span>{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
                             {{#avatarUrl}}<img class="_JX_edit_option_avatar" src="{{avatarUrl}}" alt="">{{/avatarUrl}}{{^avatarUrl}}{{#initials}}<span class="_JX_edit_option_avatar _JX_edit_option_avatar_placeholder">{{initials}}</span>{{/initials}}{{/avatarUrl}}
                             {{#iconUrl}}<img class="_JX_edit_option_icon" src="{{iconUrl}}" alt="">{{/iconUrl}}
                             <span class="_JX_edit_option_text">
@@ -164,7 +167,10 @@
                         {{#showSelectedValues}}
                         <div class="_JX_edit_selected_values">
                             {{#selectedValues}}
-                            <span class="_JX_edit_selected_chip" title="{{title}}">{{label}}</span>
+                            <span class="_JX_edit_selected_chip" title="{{title}}">
+                                <span class="_JX_edit_selected_label">{{label}}</span>
+                                <button class="_JX_edit_selected_remove" data-testid="jira-popup-edit-remove-{{fieldKey}}" type="button" data-field-key="{{fieldKey}}" data-option-id="{{id}}" title="{{removeTitle}}" aria-label="{{removeTitle}}" {{#removeDisabled}}disabled{{/removeDisabled}}><svg width="12" height="12" viewBox="0 0 24 24" focusable="false" role="presentation"><path fill="currentColor" d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.3l6.3 6.29 6.29-6.3z"></path></svg></button>
+                            </span>
                             {{/selectedValues}}
                         </div>
                         {{/showSelectedValues}}
@@ -172,8 +178,8 @@
                         {{#showDropdown}}<div class="_JX_edit_dropdown">
                             {{#hasOptions}}
                             {{#options}}
-                            <button class="_JX_edit_option{{#isSelected}} is-selected{{/isSelected}}" data-testid="jira-popup-edit-option-{{fieldKey}}" type="button" data-field-key="{{fieldKey}}" data-option-id="{{id}}" title="{{title}}">
-                                {{#isMultiSelect}}<span class="_JX_edit_option_check">{{#isSelected}}✓{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
+                            <button class="_JX_edit_option{{#isSelected}} is-selected{{/isSelected}}{{#isHighlighted}} is-highlighted{{/isHighlighted}}" data-testid="jira-popup-edit-option-{{fieldKey}}" type="button" data-field-key="{{fieldKey}}" data-option-id="{{id}}" title="{{title}}">
+                                {{#isMultiSelect}}<span class="_JX_edit_option_check" aria-hidden="true">{{#isSelected}}<span class="_JX_edit_option_selected_indicator">✓</span><span class="_JX_edit_option_remove_indicator">×</span>{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
                                 {{#avatarUrl}}<img class="_JX_edit_option_avatar" src="{{avatarUrl}}" alt="">{{/avatarUrl}}{{^avatarUrl}}{{#initials}}<span class="_JX_edit_option_avatar _JX_edit_option_avatar_placeholder">{{initials}}</span>{{/initials}}{{/avatarUrl}}
                                 {{#iconUrl}}<img class="_JX_edit_option_icon" src="{{iconUrl}}" alt="">{{/iconUrl}}
                                 <span class="_JX_edit_option_text">
@@ -422,7 +428,10 @@
                     {{#showSelectedValues}}
                     <div class="_JX_edit_selected_values">
                         {{#selectedValues}}
-                        <span class="_JX_edit_selected_chip" title="{{title}}">{{label}}</span>
+                        <span class="_JX_edit_selected_chip" title="{{title}}">
+                            <span class="_JX_edit_selected_label">{{label}}</span>
+                            <button class="_JX_edit_selected_remove" data-testid="jira-popup-edit-remove-{{fieldKey}}" type="button" data-field-key="{{fieldKey}}" data-option-id="{{id}}" title="{{removeTitle}}" aria-label="{{removeTitle}}" {{#removeDisabled}}disabled{{/removeDisabled}}><svg width="12" height="12" viewBox="0 0 24 24" focusable="false" role="presentation"><path fill="currentColor" d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.3l6.3 6.29 6.29-6.3z"></path></svg></button>
+                        </span>
                         {{/selectedValues}}
                     </div>
                     {{/showSelectedValues}}
@@ -432,8 +441,8 @@
                         {{#options}}
                         {{#isGroupLabel}}<div class="_JX_edit_group_label">{{label}}</div>{{/isGroupLabel}}
                         {{^isGroupLabel}}
-                        <button class="_JX_edit_option{{#isSelected}} is-selected{{/isSelected}}" data-testid="jira-popup-edit-option-{{fieldKey}}" type="button" data-field-key="{{fieldKey}}" data-option-id="{{id}}" title="{{title}}">
-                            {{#isMultiSelect}}<span class="_JX_edit_option_check">{{#isSelected}}✓{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
+                        <button class="_JX_edit_option{{#isSelected}} is-selected{{/isSelected}}{{#isHighlighted}} is-highlighted{{/isHighlighted}}" data-testid="jira-popup-edit-option-{{fieldKey}}" type="button" data-field-key="{{fieldKey}}" data-option-id="{{id}}" title="{{title}}">
+                            {{#isMultiSelect}}<span class="_JX_edit_option_check" aria-hidden="true">{{#isSelected}}<span class="_JX_edit_option_selected_indicator">✓</span><span class="_JX_edit_option_remove_indicator">×</span>{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
                             {{#avatarUrl}}<img class="_JX_edit_option_avatar" src="{{avatarUrl}}" alt="">{{/avatarUrl}}{{^avatarUrl}}{{#initials}}<span class="_JX_edit_option_avatar _JX_edit_option_avatar_placeholder">{{initials}}</span>{{/initials}}{{/avatarUrl}}
                             {{#iconUrl}}<img class="_JX_edit_option_icon" src="{{iconUrl}}" alt="">{{/iconUrl}}
                             <span class="_JX_edit_option_text">

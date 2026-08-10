@@ -2739,17 +2739,68 @@ body ._JX {
   }
 
   &_edit_selected_chip {
+    align-items: center;
     background: #e9f2ff;
     border: 1px solid #bcd6f7;
     border-radius: 999px;
     color: #12315b;
+    display: inline-flex;
     font-size: 12px;
+    gap: 2px;
     line-height: 16px;
     max-width: 100%;
+    padding: 4px 5px 4px 10px;
+  }
+
+  &_edit_selected_label {
+    min-width: 0;
     overflow: hidden;
-    padding: 4px 10px;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  &_edit_selected_remove {
+    align-items: center;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: #44546f;
+    cursor: pointer;
+    display: inline-flex;
+    flex: 0 0 18px;
+    height: 18px;
+    justify-content: center;
+    opacity: 0;
+    padding: 0;
+    pointer-events: none;
+    transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+    width: 18px;
+  }
+
+  &_edit_selected_chip:hover ._JX_edit_selected_remove,
+  &_edit_selected_chip:focus-within ._JX_edit_selected_remove,
+  &_edit_selected_remove:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  &_edit_selected_remove:hover,
+  &_edit_selected_remove:focus-visible {
+    background: #bcd6f7;
+    color: #172b4d;
+    outline: none;
+  }
+
+  &_edit_selected_remove:disabled {
+    cursor: default;
+    opacity: 0.45;
+  }
+
+  @media (hover: none) {
+    &_edit_selected_remove {
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
 
   &_edit_dropdown {
@@ -2796,6 +2847,7 @@ body ._JX {
   }
 
   &_edit_option:hover,
+  &_edit_option.is-highlighted,
   &_edit_option.is-selected {
     background: #e9f2ff;
   }
@@ -2835,6 +2887,22 @@ body ._JX {
     font-size: 12px;
     font-weight: 700;
     justify-content: center;
+  }
+
+  &_edit_option_remove_indicator {
+    display: none;
+    font-size: 16px;
+    line-height: 12px;
+  }
+
+  &_edit_option.is-selected:hover ._JX_edit_option_selected_indicator,
+  &_edit_option.is-selected:focus-visible ._JX_edit_option_selected_indicator {
+    display: none;
+  }
+
+  &_edit_option.is-selected:hover ._JX_edit_option_remove_indicator,
+  &_edit_option.is-selected:focus-visible ._JX_edit_option_remove_indicator {
+    display: inline;
   }
 
   &_edit_option_label {
