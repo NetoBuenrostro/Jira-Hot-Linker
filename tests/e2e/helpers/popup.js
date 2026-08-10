@@ -9,6 +9,7 @@ function popupModel(page) {
     editPopover: fieldKey => page.getByTestId(`jira-popup-edit-popover-${fieldKey}`),
     editInput: fieldKey => page.getByTestId(`jira-popup-edit-input-${fieldKey}`),
     editOptions: fieldKey => page.getByTestId(`jira-popup-edit-option-${fieldKey}`),
+    editRemoveButtons: fieldKey => page.getByTestId(`jira-popup-edit-remove-${fieldKey}`),
     editCancel: fieldKey => page.getByTestId(`jira-popup-edit-cancel-${fieldKey}`),
     editDiscard: fieldKey => page.getByTestId(`jira-popup-edit-discard-${fieldKey}`),
     editSave: fieldKey => page.getByTestId(`jira-popup-edit-save-${fieldKey}`),

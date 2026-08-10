@@ -4579,17 +4579,23 @@ async function mainAsyncLocal() {
       : (editState.selectedOptionId === null || typeof editState.selectedOptionId === 'undefined'
           ? []
           : [String(editState.selectedOptionId)]));
-    const filteredOptions = isTextEditor ? [] : filterEditOptions(editState.options, editState.inputValue).map(option => ({
+    const visibleOptions = isTextEditor ? [] : filterEditOptions(editState.options, editState.inputValue);
+    const highlightedOption = visibleOptions.find(option => !option.isGroupLabel);
+    const filteredOptions = visibleOptions.map(option => ({
       ...option,
       fieldKey,
       isSelected: option.isGroupLabel ? false : selectedOptionIds.has(option.id),
+      isHighlighted: !option.isGroupLabel && option.id === highlightedOption?.id,
       isMultiSelect,
       title: option.label
     }));
     const selectedValues = isMultiSelect
       ? (editState.selectedOptions || []).map(option => ({
           ...option,
-          title: option.label
+          fieldKey,
+          title: option.label,
+          removeTitle: `Remove ${option.label}`,
+          removeDisabled: !!editState.saving
         }))
       : [];
     const isSearchEditor = editState.editorType === 'user-search' || editState.editorType === 'issue-search' || editState.editorType === 'label-search' || editState.editorType === 'tempo-account-search';
@@ -6166,6 +6172,15 @@ async function mainAsyncLocal() {
     selectFieldEditOption(e.currentTarget.getAttribute('data-option-id'));
   });
 
+  $(document.body).on('click', '._JX_edit_selected_remove', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (popupState?.editState?.saving) {
+      return;
+    }
+    selectFieldEditOption(e.currentTarget.getAttribute('data-option-id'));
+  });
+
   $(document.body).on('input', '._JX_edit_input', function (e) {
     e.stopPropagation();
     updateFieldEditInput(e.currentTarget.value, e.currentTarget.selectionStart, e.currentTarget.selectionEnd);
@@ -6185,6 +6200,17 @@ async function mainAsyncLocal() {
           submitFieldEdit(fieldKey).catch(() => {});
         } else {
           toggleMultiSelectOptionFromInput(fieldKey);
+        }
+      } else if (editState?.fieldKey === fieldKey && editState.selectionMode !== 'text') {
+        const highlightedOption = filterEditOptions(editState.options, editState.inputValue)
+          .find(option => !option?.isGroupLabel);
+        if (!highlightedOption) {
+          submitFieldEdit(fieldKey).catch(() => {});
+          return;
+        }
+        selectFieldEditOption(highlightedOption.id);
+        if (editState.editorType !== 'transition-select') {
+          submitFieldEdit(fieldKey).catch(() => {});
         }
       } else {
         submitFieldEdit(fieldKey).catch(() => {});
