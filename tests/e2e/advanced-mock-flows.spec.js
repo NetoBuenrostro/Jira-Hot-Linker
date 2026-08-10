@@ -381,8 +381,16 @@ test('removes a selected fix version directly from its chip @mock-only', async (
 
   const selectedOption = page.locator('._JX_edit_option[data-field-key="fixVersions"].is-selected').first();
   const selectedOptionId = String(await selectedOption.getAttribute('data-option-id') || '');
+  const selectedIndicator = selectedOption.locator('._JX_edit_option_selected_indicator');
+  const removeIndicator = selectedOption.locator('._JX_edit_option_remove_indicator');
   const removeButton = popup.editRemoveButtons('fixVersions').first();
   const selectedChip = removeButton.locator('..');
+
+  await expect(selectedIndicator).toBeVisible();
+  await expect(removeIndicator).toBeHidden();
+  await selectedOption.hover();
+  await expect(selectedIndicator).toBeHidden();
+  await expect(removeIndicator).toBeVisible();
 
   await expect(removeButton).toHaveCSS('opacity', '0');
   await selectedChip.hover();

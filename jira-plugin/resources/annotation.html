@@ -46,7 +46,7 @@
                         {{#hasOptions}}
                         {{#options}}
                         <button class="_JX_edit_option{{#isSelected}} is-selected{{/isSelected}}{{#isHighlighted}} is-highlighted{{/isHighlighted}}" data-testid="jira-popup-edit-option-assignee" type="button" data-field-key="assignee" data-option-id="{{id}}" title="{{title}}">
-                            {{#isMultiSelect}}<span class="_JX_edit_option_check">{{#isSelected}}✓{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
+                            {{#isMultiSelect}}<span class="_JX_edit_option_check" aria-hidden="true">{{#isSelected}}<span class="_JX_edit_option_selected_indicator">✓</span><span class="_JX_edit_option_remove_indicator">×</span>{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
                             {{#avatarUrl}}<img class="_JX_edit_option_avatar" src="{{avatarUrl}}" alt="">{{/avatarUrl}}{{^avatarUrl}}{{#initials}}<span class="_JX_edit_option_avatar _JX_edit_option_avatar_placeholder">{{initials}}</span>{{/initials}}{{/avatarUrl}}
                             {{#iconUrl}}<img class="_JX_edit_option_icon" src="{{iconUrl}}" alt="">{{/iconUrl}}
                             <span class="_JX_edit_option_text">
@@ -179,7 +179,7 @@
                             {{#hasOptions}}
                             {{#options}}
                             <button class="_JX_edit_option{{#isSelected}} is-selected{{/isSelected}}{{#isHighlighted}} is-highlighted{{/isHighlighted}}" data-testid="jira-popup-edit-option-{{fieldKey}}" type="button" data-field-key="{{fieldKey}}" data-option-id="{{id}}" title="{{title}}">
-                                {{#isMultiSelect}}<span class="_JX_edit_option_check">{{#isSelected}}✓{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
+                                {{#isMultiSelect}}<span class="_JX_edit_option_check" aria-hidden="true">{{#isSelected}}<span class="_JX_edit_option_selected_indicator">✓</span><span class="_JX_edit_option_remove_indicator">×</span>{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
                                 {{#avatarUrl}}<img class="_JX_edit_option_avatar" src="{{avatarUrl}}" alt="">{{/avatarUrl}}{{^avatarUrl}}{{#initials}}<span class="_JX_edit_option_avatar _JX_edit_option_avatar_placeholder">{{initials}}</span>{{/initials}}{{/avatarUrl}}
                                 {{#iconUrl}}<img class="_JX_edit_option_icon" src="{{iconUrl}}" alt="">{{/iconUrl}}
                                 <span class="_JX_edit_option_text">
@@ -442,7 +442,7 @@
                         {{#isGroupLabel}}<div class="_JX_edit_group_label">{{label}}</div>{{/isGroupLabel}}
                         {{^isGroupLabel}}
                         <button class="_JX_edit_option{{#isSelected}} is-selected{{/isSelected}}{{#isHighlighted}} is-highlighted{{/isHighlighted}}" data-testid="jira-popup-edit-option-{{fieldKey}}" type="button" data-field-key="{{fieldKey}}" data-option-id="{{id}}" title="{{title}}">
-                            {{#isMultiSelect}}<span class="_JX_edit_option_check">{{#isSelected}}✓{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
+                            {{#isMultiSelect}}<span class="_JX_edit_option_check" aria-hidden="true">{{#isSelected}}<span class="_JX_edit_option_selected_indicator">✓</span><span class="_JX_edit_option_remove_indicator">×</span>{{/isSelected}}{{^isSelected}}&nbsp;{{/isSelected}}</span>{{/isMultiSelect}}
                             {{#avatarUrl}}<img class="_JX_edit_option_avatar" src="{{avatarUrl}}" alt="">{{/avatarUrl}}{{^avatarUrl}}{{#initials}}<span class="_JX_edit_option_avatar _JX_edit_option_avatar_placeholder">{{initials}}</span>{{/initials}}{{/avatarUrl}}
                             {{#iconUrl}}<img class="_JX_edit_option_icon" src="{{iconUrl}}" alt="">{{/iconUrl}}
                             <span class="_JX_edit_option_text">
