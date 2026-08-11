@@ -12,6 +12,7 @@ function optionsPageModel(page) {
     heroLinkNewIssue: page.getByTestId('options-hero-link-new-issue'),
     instanceUrlInput: page.getByTestId('options-instance-url'),
     domainsInput: page.getByTestId('options-domains'),
+    inlineCopyButtonsCheckbox: page.getByTestId('options-inline-copy-buttons'),
     advancedToggle: page.getByTestId('options-advanced-toggle'),
     hoverDepthSelect: page.getByTestId('options-hover-depth'),
     hoverModifierSelect: page.getByTestId('options-hover-modifier'),

@@ -133,6 +133,7 @@ async function configureExtension(optionsPage, config) {
     domains: config.domains,
     hoverDepth: config.hoverDepth || 'exact',
     hoverModifierKey: config.hoverModifierKey || 'none',
+    inlineCopyButtons: config.inlineCopyButtons !== false,
     displayFields: config.displayFields || {},
     customFields: config.customFields || [],
     tooltipLayout,

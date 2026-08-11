@@ -22,6 +22,7 @@ export default {
   customFields: [],
   hoverDepth: 'exact',
   hoverModifierKey: 'any',
+  inlineCopyButtons: true,
   displayFields: {
     issueType: true,
     status: true,

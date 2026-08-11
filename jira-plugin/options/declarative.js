@@ -38,11 +38,18 @@ export const contentScript = 'build/main.js';
 
 export async function resetDeclarativeMapping() {
   const config = await storageGet(defaultConfig);
+  const activationDomains = [...(config.domains || [])];
+  if (config.inlineCopyButtons !== false && config.instanceUrl) {
+    activationDomains.push(config.instanceUrl);
+  }
+  const uniqueActivationDomains = activationDomains.filter((domain, index, domains) => {
+    return domains.findIndex(candidate => toMatchUrl(candidate) === toMatchUrl(domain)) === index;
+  });
   chrome.declarativeContent.onPageChanged.removeRules(
     undefined,
     function () {
       chrome.declarativeContent.onPageChanged.addRules([{
-        conditions: config.domains.map(pageStateWildCardMatcher),
+        conditions: uniqueActivationDomains.map(pageStateWildCardMatcher),
         actions: [new chrome.declarativeContent.RequestContentScript({
           js: [contentScript],
           allFrames: true,
