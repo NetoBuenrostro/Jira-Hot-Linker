@@ -789,8 +789,14 @@ export function createPopupEditing(deps) {
         return null;
       }
       const currentLink = linkage.currentLink;
+      const projectKey = String(issueData?.key || '').split('-')[0];
+      const currentLinkProjectKey = String(currentLink?.key || '').split('-')[0];
+      const currentLinkIsLocal = currentLinkProjectKey === projectKey;
       const currentOption = currentLink
         ? buildEditOption(currentLink.key, `[${currentLink.key}] ${currentLink.summary || currentLink.key}`, {
+            groupKey: currentLinkIsLocal ? `project:${projectKey}` : '__other_projects__',
+            groupLabel: currentLinkIsLocal ? `${projectKey} project` : 'Other projects',
+            groupSortKey: currentLinkIsLocal ? '0' : '1',
             rawValue: {
               key: currentLink.key,
               summary: currentLink.summary || currentLink.key,
@@ -810,9 +816,13 @@ export function createPopupEditing(deps) {
         loadOptions: async () => {
           const recentOptions = getRecentIssueSearchOptions(issueData, linkage.mode);
           const searchedOptions = await searchParentCandidates('', issueData, linkage.mode).catch(() => []);
-          return mergeEditOptions([currentOption].filter(Boolean), mergeEditOptions(searchedOptions, recentOptions));
+          return buildGroupedOptionList(
+            mergeEditOptions([currentOption].filter(Boolean), mergeEditOptions(searchedOptions, recentOptions))
+          );
         },
-        searchOptions: query => searchParentCandidates(query, issueData, linkage.mode),
+        searchOptions: async query => buildGroupedOptionList(
+          await searchParentCandidates(query, issueData, linkage.mode)
+        ),
         save: selectedOptions => {
           const selectedOption = selectedOptions[0];
           const selectedIssueKey = selectedOption?.rawValue?.key || selectedOption?.id;

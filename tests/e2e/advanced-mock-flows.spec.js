@@ -79,8 +79,96 @@ test('shows assignee and parent search results inside their editors', async ({ex
   await popup.editCancel('assignee').click();
 
   await popup.editButton('parentLink').click();
+  await expect(popup.editPopover('parentLink')).toContainText('Parent');
   await popup.editInput('parentLink').fill(resolvedTarget.secondaryIssueKey.split('-')[1]);
   await expect(page.locator(`._JX_edit_option[data-field-key="parentLink"][data-option-id="${resolvedTarget.secondaryIssueKey}"]`).first()).toBeVisible();
+
+  await page.close();
+});
+
+test('lists valid Parent candidates from the current project before other projects @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: false});
+  test.skip(target.mode !== 'mock', 'Parent hierarchy ordering is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+  await popup.editButton('parentLink').click();
+
+  const options = page.locator('._JX_edit_option[data-field-key="parentLink"]:not([data-option-id^="__group__"])');
+  await waitForOptions(options, 3);
+  await expect(options).toHaveCount(3);
+  await expect(options.nth(0)).toHaveAttribute('data-option-id', 'JRACLOUD-97000');
+  await expect(options.nth(1)).toHaveAttribute('data-option-id', 'JRACLOUD-98123');
+  await expect(options.nth(2)).toHaveAttribute('data-option-id', 'PLATFORM-101');
+  await expect(page.locator('._JX_edit_option[data-field-key="parentLink"][data-option-id="JRACLOUD-99999"]')).toHaveCount(0);
+  await expect(popup.editPopover('parentLink')).toContainText('JRACLOUD project');
+  await expect(popup.editPopover('parentLink')).toContainText('Other projects');
+
+  await page.close();
+});
+
+test('uses the Parent label and Epic-only candidates with Jira Data Center Epic Link @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: false});
+  test.skip(target.mode !== 'mock', 'Data Center compatibility is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  await failWithJson(extensionApp.context, target.instanceUrl, '/rest/api/3/issuetype(?:\\?.*)?$', 404, {errorMessages: ['Not available']});
+  await patchJsonResponse(extensionApp.context, target.instanceUrl, '/rest/api/2/issuetype(?:\\?.*)?$', payload => (
+    payload.map(issueType => {
+      const dataCenterIssueType = {...issueType};
+      delete dataCenterIssueType.hierarchyLevel;
+      return dataCenterIssueType;
+    })
+  ));
+  await patchJsonResponse(extensionApp.context, target.instanceUrl, '/rest/api/2/field(?:\\?.*)?$', payload => [
+    ...payload,
+    {id: 'customfield_10014', name: 'Epic Link', schema: {custom: 'com.pyxis.greenhopper.jira:gh-epic-link'}},
+  ]);
+  await patchJsonResponse(extensionApp.context, target.instanceUrl, `/rest/api/2/issue/${target.primaryIssueKey}\\?[^#]+$`, payload => ({
+    ...payload,
+    names: {...payload.names, customfield_10014: 'Epic Link'},
+    fields: {
+      ...payload.fields,
+      parent: null,
+      customfield_10014: 'JRACLOUD-97000',
+    },
+  }));
+  await patchJsonResponse(extensionApp.context, target.instanceUrl, '/rest/api/2/issue/[^/]+/editmeta(?:\\?.*)?$', payload => {
+    const fields = {...payload.fields};
+    delete fields.parent;
+    fields.customfield_10014 = {
+      name: 'Epic Link',
+      operations: ['set'],
+      schema: {custom: 'com.pyxis.greenhopper.jira:gh-epic-link'},
+    };
+    return {...payload, fields};
+  });
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+  await popup.editButton('parentLink').click();
+  await expect(popup.editPopover('parentLink')).toContainText('Parent');
+
+  const options = page.locator('._JX_edit_option[data-field-key="parentLink"]:not([data-option-id^="__group__"])');
+  await waitForOptions(options, 3);
+  await expect(page.locator('._JX_edit_option[data-field-key="parentLink"][data-option-id="JRACLOUD-99999"]')).toHaveCount(0);
+  await expect(options.nth(0)).toHaveAttribute('data-option-id', 'JRACLOUD-97000');
+  await expect(options.nth(2)).toHaveAttribute('data-option-id', 'PLATFORM-101');
+
+  const nextParent = page.locator('._JX_edit_option[data-field-key="parentLink"][data-option-id="JRACLOUD-98123"]');
+  const updateRequestPromise = extensionApp.context.waitForEvent('request', request => (
+    request.method() === 'PUT' && request.url().includes(`/rest/api/2/issue/${target.primaryIssueKey}`)
+  ));
+  await nextParent.click();
+  await popup.editInput('parentLink').press('Enter');
+  const updateRequest = await updateRequestPromise;
+  await expect.poll(async () => updateRequest.postDataJSON()).toEqual({
+    fields: {customfield_10014: 'JRACLOUD-98123'},
+  });
 
   await page.close();
 });
