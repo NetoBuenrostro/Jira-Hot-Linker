@@ -108,6 +108,50 @@ test('selects the top filtered single-select option with Enter @mock-only', asyn
   await page.close();
 });
 
+test('navigates dropdown options immediately and after filtering @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Dropdown keyboard navigation coverage is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+
+  await popup.editButton('sprint').click();
+  const sprintInput = popup.editInput('sprint');
+  const sprintOptions = popup.editOptions('sprint');
+  await waitForOptions(sprintOptions, 2);
+  await expect(sprintInput).toBeFocused();
+
+  const firstSprintOptionId = await sprintOptions.nth(0).getAttribute('id');
+  const secondSprintOptionId = await sprintOptions.nth(1).getAttribute('id');
+  await sprintInput.press('ArrowDown');
+  await expect(sprintInput).toHaveAttribute('aria-activedescendant', firstSprintOptionId);
+  await expect(sprintOptions.nth(0)).toHaveClass(/is-highlighted/);
+
+  await sprintInput.press('ArrowDown');
+  await expect(sprintInput).toHaveAttribute('aria-activedescendant', secondSprintOptionId);
+  await expect(sprintOptions.nth(1)).toHaveClass(/is-highlighted/);
+
+  await sprintInput.press('ArrowUp');
+  await expect(sprintInput).toHaveAttribute('aria-activedescendant', firstSprintOptionId);
+  await sprintInput.press('Escape');
+
+  await popup.editButton('assignee').click();
+  const assigneeInput = popup.editInput('assignee');
+  await assigneeInput.fill('Morgan');
+  const filteredResult = popup.editOptions('assignee').first();
+  await expect(filteredResult).toContainText('Morgan Agent');
+  const filteredResultId = await filteredResult.getAttribute('id');
+  await assigneeInput.press('ArrowDown');
+  await expect(assigneeInput).toHaveAttribute('aria-activedescendant', filteredResultId);
+  await assigneeInput.press('Enter');
+
+  await expect(popup.root).toContainText('Assignee set to Morgan Agent');
+  await page.close();
+});
+
 test('prefers Jira internal assignee results when public user endpoints miss a candidate @mock-only', async ({extensionApp, optionsPage, servers}) => {
   const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
   test.skip(target.mode !== 'mock', 'Assignee fallback coverage is deterministic in mocked mode only.');
@@ -385,12 +429,23 @@ test('removes a selected fix version directly from its chip @mock-only', async (
   const removeIndicator = selectedOption.locator('._JX_edit_option_remove_indicator');
   const removeButton = popup.editRemoveButtons('fixVersions').first();
   const selectedChip = removeButton.locator('..');
+  const dropdown = popup.editPopover('fixVersions').locator('._JX_edit_dropdown');
+  const measureLayout = async () => Promise.all([
+    popup.editPopover('fixVersions'),
+    dropdown,
+    selectedOption,
+  ].map(locator => locator.evaluate(node => {
+    const {width, height} = node.getBoundingClientRect();
+    return {width, height};
+  })));
 
   await expect(selectedIndicator).toBeVisible();
   await expect(removeIndicator).toBeHidden();
+  const layoutBeforeHover = await measureLayout();
   await selectedOption.hover();
   await expect(selectedIndicator).toBeHidden();
   await expect(removeIndicator).toBeVisible();
+  expect(await measureLayout()).toEqual(layoutBeforeHover);
 
   await expect(removeButton).toHaveCSS('opacity', '0');
   await selectedChip.hover();
