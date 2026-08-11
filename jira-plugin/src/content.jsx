@@ -2794,22 +2794,26 @@ async function mainAsyncLocal() {
   async function getChildIssues(issueData) {
     const issueKey = String(issueData?.key || '').trim();
     if (!issueKey) {
-      return [];
+      return {issues: [], jql: ''};
     }
 
     return getCachedValue(childIssueCache, issueKey, async () => {
       const searchFields = ['summary', 'issuetype', 'status', 'assignee'];
+      const directJql = `parent = ${encodeChildIssueJqlValue(issueKey)}`;
       let directSearchError = null;
       let directChildren = [];
 
       try {
-        directChildren = await searchIssuesByJql(`parent = ${encodeChildIssueJqlValue(issueKey)}`, searchFields);
+        directChildren = await searchIssuesByJql(directJql, searchFields);
       } catch (error) {
         directSearchError = error;
       }
 
       if (directChildren.length) {
-        return dedupeIssuesByKey(directChildren);
+        return {
+          issues: dedupeIssuesByKey(directChildren),
+          jql: directJql,
+        };
       }
 
       const [epicLinkFieldIds, parentLinkFieldIds] = await Promise.all([
@@ -2824,15 +2828,17 @@ async function mainAsyncLocal() {
         if (directSearchError) {
           throw directSearchError;
         }
-        return [];
+        return {issues: [], jql: directJql};
       }
 
       const fallbackChildren = [];
+      const successfulFallbackJqls = [];
       let fallbackSearchError = null;
       let fallbackSucceeded = false;
       for (const jql of fallbackJqls) {
         try {
           fallbackChildren.push(...(await searchIssuesByJql(jql, searchFields)));
+          successfulFallbackJqls.push(jql);
           fallbackSucceeded = true;
         } catch (error) {
           fallbackSearchError = error;
@@ -2846,7 +2852,10 @@ async function mainAsyncLocal() {
         throw fallbackSearchError;
       }
 
-      return dedupeIssuesByKey(fallbackChildren);
+      return {
+        issues: dedupeIssuesByKey(fallbackChildren),
+        jql: successfulFallbackJqls.join(' OR '),
+      };
     });
   }
 
@@ -6996,10 +7005,13 @@ async function mainAsyncLocal() {
       const issueData = await getIssueMetaData(key);
       await normalizeIssueImages(issueData);
       let children = [];
+      let childrenJql = '';
       let childrenError = '';
       if (showChildren) {
         try {
-          children = await getChildIssues(issueData);
+          const childSearch = await getChildIssues(issueData);
+          children = childSearch.issues;
+          childrenJql = childSearch.jql;
           await normalizeChildIssueImages(children).catch(() => {});
         } catch (ex) {
           console.log('[Jira QuickView] Child issue fetch failed', {
@@ -7051,6 +7063,7 @@ async function mainAsyncLocal() {
         key,
         issueData,
         children,
+        childrenJql,
         childrenError,
         childrenSort: DEFAULT_CHILDREN_SORT,
         commentSortOrder: commentSortOrderPreference,

@@ -618,7 +618,17 @@
         {{#showChildrenSection}}
         <div class="_JX_content_block" data-content-block="children">
         <div class="_JX_related_table _JX_related_table_children">
-            <div class="_JX_section_title">Children</div>
+            <div class="_JX_section_title _JX_section_title_with_action">
+                <span>Children</span>
+                {{#childrenJqlUrl}}
+                <a class="_JX_children_jql_link" data-testid="jira-popup-children-jql-link" href="{{childrenJqlUrl}}" target="_blank" rel="noopener noreferrer" title="{{childrenJqlTitle}}">
+                    <span>View all in Jira</span>
+                    <svg width="12" height="12" viewBox="0 0 16 16" focusable="false" role="presentation" aria-hidden="true">
+                        <path d="M9.5 2.5h4v4M13.5 2.5l-7 7M12.5 8.5v4h-9v-9h4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+                    </svg>
+                </a>
+                {{/childrenJqlUrl}}
+            </div>
             <div class="_JX_section_content">
             {{#hasChildrenError}}
             <div class="_JX_related_table_error">{{childrenErrorText}}</div>
