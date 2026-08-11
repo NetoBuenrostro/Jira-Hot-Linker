@@ -23,6 +23,7 @@ Open a Jira notification email in Gmail or Outlook, hover the issue key in the m
 - Configurable layout with Jira custom fields placed directly into the popup rows
 - Comment drafting with mentions and support for comment reactions
 - Jira-backed quick actions and workflow transitions
+- Copy issue links directly from Jira details, search results, boards, and backlogs
 
 ## Why it matters
 
@@ -47,7 +48,7 @@ For full setup details, advanced allowed-page patterns, desktop-app/PWA setup no
 
 ## Where it works
 
-Jira QuickView works on pages you explicitly allow, including GitHub, Gmail, Outlook on the web, internal docs, wiki pages, dashboards, release notes, and QA checklists. It does not scan every site you visit.
+Jira QuickView works on pages you explicitly allow, including GitHub, Gmail, Outlook on the web, internal docs, wiki pages, dashboards, release notes, and QA checklists. On your configured Jira Cloud or Jira Data Center instance, it can also add a copy action beside issue keys on details, search results, boards, and backlogs. It does not scan every site you visit.
 
 ## Customize the popup
 
