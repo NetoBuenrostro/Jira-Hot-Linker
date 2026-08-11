@@ -305,6 +305,7 @@ export function createContentDisplayHelpers(options) {
       key,
       issueData,
       children,
+      childrenJql,
       childrenError,
       childrenSort,
       commentSortOrder,
@@ -564,6 +565,10 @@ export function createContentDisplayHelpers(options) {
       .filter(row => row.issueKey)
       .sort((left, right) => compareChildrenRows(left, right, normalizedChildrenSort.column, normalizedChildrenSort.direction));
     const childSectionError = String(childrenError || '').trim();
+    const normalizedChildrenJql = String(childrenJql || '').trim();
+    const childrenJqlUrl = normalizedChildrenJql
+      ? `${instanceUrl}issues/?jql=${encodeURIComponent(normalizedChildrenJql)}`
+      : '';
     const childrenSortHeaders = [
       buildRelatedTableSortHeader(normalizedChildrenSort, 'type', 'Type'),
       buildRelatedTableSortHeader(normalizedChildrenSort, 'key', 'Key / Summary', 'key'),
@@ -641,6 +646,10 @@ export function createContentDisplayHelpers(options) {
       copyUrl: issueUrl,
       copyTicket: key,
       copyTitle: issueData.fields.summary,
+      childrenJqlUrl,
+      childrenJqlTitle: normalizedChildrenJql
+        ? `View all child issues in Jira (${normalizedChildrenJql})`
+        : '',
       childrenRows: [],
       childrenSortHeaders,
       childrenErrorText: childSectionError,

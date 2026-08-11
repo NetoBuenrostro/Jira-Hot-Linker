@@ -984,11 +984,19 @@ async function createMockJiraServer() {
     }
 
     if (pathname === '/rest/api/2/field' && req.method === 'GET') {
-      json(res, 200, [
+      const fields = [
         {id: 'customfield_10020', name: 'Sprint', schema: {custom: 'com.pyxis.greenhopper.jira:gh-sprint', type: 'array'}},
         {id: 'customfield_12345', name: 'Customer Impact'},
         {id: 'customfield_67890', name: 'Reviewer', schema: {type: 'user', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:userpicker'}},
-      ]);
+      ];
+      if (scenarioIn('epic-link-children')) {
+        fields.push({
+          id: 'customfield_10014',
+          name: 'Epic Link',
+          schema: {custom: 'com.pyxis.greenhopper.jira:gh-epic-link'},
+        });
+      }
+      json(res, 200, fields);
       return;
     }
 
@@ -1382,6 +1390,9 @@ async function createMockJiraServer() {
         return;
       }
       let issues = isChildSearch ? state.childIssues : state.issueSearchCatalog;
+      if (isChildSearch && scenarioIn('epic-link-children') && /\bparent\s*=/.test(jql)) {
+        issues = [];
+      }
       if (!isChildSearch) {
         const projectEquals = jql.match(/\bproject\s*=\s*"?([A-Z][A-Z0-9_]*)"?/i);
         const projectNotEquals = jql.match(/\bproject\s*!=\s*"?([A-Z][A-Z0-9_]*)"?/i);

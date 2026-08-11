@@ -148,6 +148,14 @@ test('shows the Children block above pull requests and sorts it from the column 
   expect(blockOrder.indexOf('pullRequests')).toBeGreaterThanOrEqual(0);
   expect(blockOrder.indexOf('children')).toBeLessThan(blockOrder.indexOf('pullRequests'));
 
+  const childrenJqlLink = page.getByTestId('jira-popup-children-jql-link');
+  await expect(childrenJqlLink).toBeVisible();
+  await expect(childrenJqlLink).toHaveText('View all in Jira');
+  await expect(childrenJqlLink).toHaveAttribute('target', '_blank');
+  const childrenJqlUrl = new URL(await childrenJqlLink.getAttribute('href'));
+  expect(childrenJqlUrl.pathname).toBe('/issues/');
+  expect(childrenJqlUrl.searchParams.get('jql')).toBe('parent = "JRACLOUD-97846"');
+
   const childLinks = page.locator('[data-content-block="children"] tbody tr td:nth-child(2) a');
   await expect(childLinks).toHaveText([
     '[JRACLOUD-97847] Stabilize slash command parsing in multiline editor fields',
@@ -168,6 +176,27 @@ test('shows the Children block above pull requests and sorts it from the column 
     '[JRACLOUD-97847] Stabilize slash command parsing in multiline editor fields',
     '[JRACLOUD-97849] Audit mention command interactions around END key handling',
   ]);
+
+  const screenshotPath = String(process.env.JHL_CAPTURE_CHILDREN_JQL_SCREENSHOT || '').trim();
+  if (screenshotPath) {
+    await page.locator('[data-content-block="children"]').screenshot({path: screenshotPath});
+  }
+
+  await page.close();
+});
+
+test('links Epic children with the Jira Data Center Epic Link JQL fallback @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Epic Link fallback coverage is deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('epic-link-children');
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const childrenJqlLink = page.getByTestId('jira-popup-children-jql-link');
+  await expect(childrenJqlLink).toBeVisible();
+  const childrenJqlUrl = new URL(await childrenJqlLink.getAttribute('href'));
+  expect(childrenJqlUrl.searchParams.get('jql')).toBe('cf[10014] = "JRACLOUD-97846"');
 
   await page.close();
 });
