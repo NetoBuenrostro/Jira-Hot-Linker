@@ -2881,18 +2881,34 @@ body ._JX {
   }
 
   &_edit_option_check {
+    align-items: center;
     color: #0c66e4;
     display: inline-flex;
     flex: 0 0 14px;
     font-size: 12px;
     font-weight: 700;
+    height: 16px;
     justify-content: center;
+    line-height: 16px;
+  }
+
+  &_edit_option_selected_indicator,
+  &_edit_option_remove_indicator {
+    align-items: center;
+    flex: 0 0 14px;
+    height: 16px;
+    justify-content: center;
+    line-height: 16px;
+    width: 14px;
+  }
+
+  &_edit_option_selected_indicator {
+    display: inline-flex;
   }
 
   &_edit_option_remove_indicator {
     display: none;
     font-size: 16px;
-    line-height: 12px;
   }
 
   &_edit_option.is-selected:hover ._JX_edit_option_selected_indicator,
@@ -2902,7 +2918,7 @@ body ._JX {
 
   &_edit_option.is-selected:hover ._JX_edit_option_remove_indicator,
   &_edit_option.is-selected:focus-visible ._JX_edit_option_remove_indicator {
-    display: inline;
+    display: inline-flex;
   }
 
   &_edit_option_label {

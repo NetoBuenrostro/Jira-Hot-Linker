@@ -4580,10 +4580,12 @@ async function mainAsyncLocal() {
           ? []
           : [String(editState.selectedOptionId)]));
     const visibleOptions = isTextEditor ? [] : filterEditOptions(editState.options, editState.inputValue);
-    const highlightedOption = visibleOptions.find(option => !option.isGroupLabel);
-    const filteredOptions = visibleOptions.map(option => ({
+    const selectableOptions = visibleOptions.filter(option => !option.isGroupLabel);
+    const highlightedOption = selectableOptions.find(option => option.id === editState.highlightedOptionId) || selectableOptions[0];
+    const filteredOptions = visibleOptions.map((option, optionIndex) => ({
       ...option,
       fieldKey,
+      optionDomId: `jira-popup-edit-option-${fieldKey}-${optionIndex}`,
       isSelected: option.isGroupLabel ? false : selectedOptionIds.has(option.id),
       isHighlighted: !option.isGroupLabel && option.id === highlightedOption?.id,
       isMultiSelect,
@@ -4612,6 +4614,9 @@ async function mainAsyncLocal() {
       isRightAligned: options.isRightAligned || fieldKey === 'fixVersions' || fieldKey === 'versions',
       editLabel: editState.label,
       inputValue: editState.inputValue,
+      highlightedOptionDomId: highlightedOption
+        ? `jira-popup-edit-option-${fieldKey}-${visibleOptions.indexOf(highlightedOption)}`
+        : '',
       inputPlaceholder: editState.inputPlaceholder || `Type to filter ${editState.label.toLowerCase()} values`,
       inputDisabled,
       useTextarea: editState.editorType === 'textarea',
@@ -5023,6 +5028,10 @@ async function mainAsyncLocal() {
         const selectionEnd = Math.min(maxIndex, Number.isInteger(state.editState.selectionEnd) ? state.editState.selectionEnd : maxIndex);
         input.setSelectionRange(selectionStart, selectionEnd);
       }
+      const highlightedOption = container.find('._JX_edit_option.is-highlighted')[0];
+      if (highlightedOption) {
+        highlightedOption.scrollIntoView({block: 'nearest'});
+      }
       } else if (state.timeTrackingEditState?.activeInputField) {
         const input = container.find(`._JX_time_tracking_input[data-time-tracking-field="${state.timeTrackingEditState.activeInputField}"]`)[0];
         if (input) {
@@ -5359,6 +5368,7 @@ async function mainAsyncLocal() {
         editState: {
           ...popupState.editState,
           options: mergedOptions,
+          highlightedOptionId: null,
           loadingOptions: false,
           errorMessage: ''
         }
@@ -5430,6 +5440,7 @@ async function mainAsyncLocal() {
         errorMessage: '',
         showActionButtons: !!definition.showActionButtons,
         searchRequestId: 0,
+        highlightedOptionId: null,
         selectionStart: initialValue.length,
         selectionEnd: initialValue.length
       }
@@ -5540,6 +5551,7 @@ async function mainAsyncLocal() {
         ...popupState,
         editState: buildNextMultiSelectState(popupState.editState, {
           inputValue: normalizedValue,
+          highlightedOptionId: null,
           errorMessage: '',
           selectionStart,
           selectionEnd
@@ -5612,6 +5624,7 @@ async function mainAsyncLocal() {
         ...popupState.editState,
         inputValue: nextInputValue,
         selectedOptionId: nextSelectedOptionId,
+        highlightedOptionId: null,
         errorMessage: '',
         selectionStart: nextSelectionStart,
         selectionEnd: nextSelectionEnd
@@ -5638,6 +5651,40 @@ async function mainAsyncLocal() {
     }
   }
 
+  function getHighlightedFieldEditOption(editState) {
+    if (!editState || editState.selectionMode === 'text') {
+      return null;
+    }
+    const selectableOptions = filterEditOptions(editState.options, editState.inputValue)
+      .filter(option => !option?.isGroupLabel);
+    return selectableOptions.find(option => option.id === editState.highlightedOptionId) || selectableOptions[0] || null;
+  }
+
+  function moveFieldEditHighlight(fieldKey, direction) {
+    if (!popupState?.editState || popupState.editState.fieldKey !== fieldKey || popupState.editState.selectionMode === 'text') {
+      return false;
+    }
+    const selectableOptions = filterEditOptions(popupState.editState.options, popupState.editState.inputValue)
+      .filter(option => !option?.isGroupLabel);
+    if (!selectableOptions.length) {
+      return false;
+    }
+    const currentIndex = selectableOptions.findIndex(option => option.id === popupState.editState.highlightedOptionId);
+    const nextIndex = currentIndex === -1
+      ? (direction > 0 ? 0 : selectableOptions.length - 1)
+      : Math.max(0, Math.min(selectableOptions.length - 1, currentIndex + direction));
+    popupState = {
+      ...popupState,
+      editState: {
+        ...popupState.editState,
+        highlightedOptionId: selectableOptions[nextIndex].id,
+        errorMessage: ''
+      }
+    };
+    renderIssuePopup(popupState).catch(() => {});
+    return true;
+  }
+
   function selectFieldEditOption(optionId) {
     if (!popupState?.editState) {
       return;
@@ -5655,6 +5702,7 @@ async function mainAsyncLocal() {
         ...popupState,
         editState: buildNextMultiSelectState(popupState.editState, {
           selectedOptionIds: nextSelectedOptionIds,
+          highlightedOptionId: option.id,
           errorMessage: ''
         })
       };
@@ -5667,6 +5715,7 @@ async function mainAsyncLocal() {
         ...popupState.editState,
         inputValue: option.label,
         selectedOptionId: option.id,
+        highlightedOptionId: option.id,
         errorMessage: '',
         selectionStart: option.label.length,
         selectionEnd: option.label.length
@@ -6190,6 +6239,11 @@ async function mainAsyncLocal() {
     e.stopPropagation();
     const fieldKey = e.currentTarget.getAttribute('data-field-key') || '';
     const editState = popupState?.editState;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && editState?.fieldKey === fieldKey && editState.selectionMode !== 'text') {
+      e.preventDefault();
+      moveFieldEditHighlight(fieldKey, e.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
     if (e.key === 'Enter') {
       if (editState?.fieldKey === fieldKey && editState.selectionMode === 'text' && editState.editorType === 'textarea' && !(e.ctrlKey || e.metaKey)) {
         return;
@@ -6199,11 +6253,10 @@ async function mainAsyncLocal() {
         if (e.ctrlKey || e.metaKey) {
           submitFieldEdit(fieldKey).catch(() => {});
         } else {
-          toggleMultiSelectOptionFromInput(fieldKey);
+          toggleMultiSelectOptionFromInput(fieldKey, getHighlightedFieldEditOption(editState)?.id);
         }
       } else if (editState?.fieldKey === fieldKey && editState.selectionMode !== 'text') {
-        const highlightedOption = filterEditOptions(editState.options, editState.inputValue)
-          .find(option => !option?.isGroupLabel);
+        const highlightedOption = getHighlightedFieldEditOption(editState);
         if (!highlightedOption) {
           submitFieldEdit(fieldKey).catch(() => {});
           return;
