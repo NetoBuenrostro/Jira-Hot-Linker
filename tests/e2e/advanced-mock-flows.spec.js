@@ -215,10 +215,6 @@ test('navigates dropdown options immediately and after filtering @mock-only', as
   const firstSprintOptionId = await sprintOptions.nth(0).getAttribute('id');
   const secondSprintOptionId = await sprintOptions.nth(1).getAttribute('id');
   await sprintInput.press('ArrowDown');
-  await expect(sprintInput).toHaveAttribute('aria-activedescendant', firstSprintOptionId);
-  await expect(sprintOptions.nth(0)).toHaveClass(/is-highlighted/);
-
-  await sprintInput.press('ArrowDown');
   await expect(sprintInput).toHaveAttribute('aria-activedescendant', secondSprintOptionId);
   await expect(sprintOptions.nth(1)).toHaveClass(/is-highlighted/);
 
@@ -237,6 +233,33 @@ test('navigates dropdown options immediately and after filtering @mock-only', as
   await assigneeInput.press('Enter');
 
   await expect(popup.root).toContainText('Assignee set to Morgan Agent');
+  await page.close();
+});
+
+test('keeps fix version options readable and distinct in dark mode @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: false});
+  test.skip(target.mode !== 'mock', 'Dark-theme editor colors are deterministic in mocked mode only.');
+
+  await servers.jira.setScenario('editable');
+  await configureExtension(optionsPage, baseConfig(servers, target));
+  await optionsPage.evaluate(() => chrome.storage.sync.set({themeMode: 'dark'}));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const popup = popupModel(page);
+  await expect(page.locator('html')).toHaveAttribute('data-jhl-theme', 'dark');
+  await popup.editButton('fixVersions').click();
+
+  const options = popup.editOptions('fixVersions');
+  await waitForOptions(options, 4);
+  const highlightedOption = page.locator('._JX_edit_option[data-field-key="fixVersions"].is-highlighted').first();
+  const selectedOption = page.locator('._JX_edit_option[data-field-key="fixVersions"].is-selected').first();
+  const normalOption = page.locator('._JX_edit_option[data-field-key="fixVersions"]:not(.is-selected):not(.is-highlighted)').first();
+
+  await expect(normalOption).toHaveCSS('color', 'rgb(241, 245, 249)');
+  await expect(selectedOption).toHaveCSS('background-color', 'rgb(38, 56, 79)');
+  await expect(highlightedOption).toHaveCSS('background-color', 'rgb(49, 95, 143)');
+  await expect(highlightedOption).toHaveCSS('color', 'rgb(255, 255, 255)');
+
   await page.close();
 });
 
