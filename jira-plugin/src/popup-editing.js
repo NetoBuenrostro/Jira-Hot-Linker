@@ -1019,7 +1019,7 @@ export function createPopupEditing(deps) {
     return exactOption ? [exactOption] : [];
   }
 
-  function toggleMultiSelectOptionFromInput(fieldKey) {
+  function toggleMultiSelectOptionFromInput(fieldKey, preferredOptionId = null) {
     const popupState = getPopupState();
     if (!popupState?.editState || popupState.editState.fieldKey !== fieldKey || popupState.editState.selectionMode !== 'multi') {
       return false;
@@ -1027,7 +1027,7 @@ export function createPopupEditing(deps) {
 
     const visibleOptions = filterEditOptions(popupState.editState.options, popupState.editState.inputValue)
       .filter(option => !option?.isGroupLabel);
-    const nextOption = visibleOptions[0];
+    const nextOption = visibleOptions.find(option => option.id === preferredOptionId) || visibleOptions[0];
     if (!nextOption?.id) {
       return false;
     }
@@ -1041,6 +1041,7 @@ export function createPopupEditing(deps) {
       ...popupState,
       editState: buildNextMultiSelectState(popupState.editState, {
         selectedOptionIds: nextSelectedOptionIds,
+        highlightedOptionId: nextOption.id,
         errorMessage: '',
       }),
     });
