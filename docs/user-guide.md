@@ -60,6 +60,7 @@ The screenshots in this guide are examples. Your popup can look different depend
     <ul>
       <li><a href="#5-using-the-popup-every-day">5. Using the Popup Every Day overview</a></li>
       <li><a href="#51-where-the-popup-appears">5.1 Where the Popup Appears</a></li>
+      <li><a href="#511-copy-issue-links-inside-jira">5.1.1 Copy Issue Links Inside Jira</a></li>
       <li><a href="#52-header-reporter-assignee-summary-and-actions">5.2 Header: Reporter, Assignee, Summary, and Actions</a></li>
       <li><a href="#53-quick-actions-menu">5.3 Quick Actions Menu</a></li>
       <li>
@@ -115,6 +116,7 @@ Jira QuickView is built for people who see Jira issue keys outside Jira all day:
 With the extension, you can:
 
 - Open a Jira issue preview by hovering an issue key such as `ABC-123`.
+- Copy issue links directly from issue details, search results, boards, and backlogs inside Jira.
 - See the issue summary, reporter, assignee, status, priority, versions, sprint, labels, description, comments, attachments, history, and linked pull requests.
 - Update supported fields directly from the popup when Jira allows it.
 - Add comments, mention teammates, react to comments, edit your own comments, and inspect attachment evidence.
@@ -289,7 +291,7 @@ What to know:
 
 ![Appearance settings](screenshots/user-guide/options-basic-settings.png)
 
-The Appearance block controls the color mode for the Options page and popup.
+The Appearance block controls the color mode for the Options page and popup, as well as whether Jira QuickView adds copy actions inside Jira.
 
 Available modes:
 
@@ -298,6 +300,8 @@ Available modes:
 - `Dark` keeps the extension in dark mode.
 
 Most users should keep `System`. Use `Light` or `Dark` only if you want Jira QuickView to stay fixed regardless of your OS theme.
+
+`Show copy buttons in Jira` is enabled by default. It adds a copy action beside issue keys on Jira issue details, search results, boards, and backlogs. Turn it off if you want Jira QuickView to leave the Jira interface unchanged. This setting supports both Jira Cloud and Jira Data Center.
 
 ### 4.3 Advanced: Show Advanced Settings
 
@@ -538,6 +542,20 @@ The popup appears on pages matched by your Allowed pages settings. Common places
 - Release dashboards
 
 The extension only looks for Jira issue keys on allowed pages. It does not scan every site you visit.
+
+#### 5.1.1 Copy Issue Links Inside Jira
+
+When `Show copy buttons in Jira` is enabled, Jira QuickView adds a copy action beside structured issue keys on your configured Jira instance.
+
+| Issue details | Search results | Board cards |
+| --- | --- | --- |
+| ![Copy action on Jira issue details](screenshots/user-guide/jira-inline-copy-cloud-detail.png) | ![Copy action in Jira search results](screenshots/user-guide/jira-inline-copy-search-results.png) | ![Copy action on a Jira board card](screenshots/user-guide/jira-inline-copy-board.png) |
+
+The action is always available beside the key on issue details. In search results, boards, and backlogs, hover or focus a result to reveal it without adding permanent visual clutter.
+
+Copying uses the same behavior as the popup header: applications that accept rich clipboard content receive a linked `[KEY] Summary` label, while the plain-text clipboard contains the canonical Jira issue URL. Jira QuickView follows dynamically loaded Jira content and avoids adding duplicate actions during in-app navigation.
+
+The copy action appears only on the Jira instance configured in Options. If it is missing, confirm that `Show copy buttons in Jira` is enabled, save Options, and reload the Jira tab.
 
 ### 5.2 Header: Reporter, Assignee, Summary, and Actions
 

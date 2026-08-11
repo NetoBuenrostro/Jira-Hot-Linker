@@ -19,6 +19,7 @@ export const DEFAULT_SYNC_POLICY = {
   themeMode: 'unmanaged',
   hoverDepth: 'default',
   hoverModifierKey: 'default',
+  inlineCopyButtons: 'default',
   displayFields: 'default',
   tooltipLayout: 'default',
   customFields: 'default',
@@ -264,6 +265,10 @@ export function normalizeSettingsPayload(payload) {
   if (Object.prototype.hasOwnProperty.call(rawSettings, 'hoverModifierKey')) {
     const hoverModifierKey = String(rawSettings.hoverModifierKey || '').trim();
     settings.hoverModifierKey = VALID_HOVER_MODIFIER_KEYS.includes(hoverModifierKey) ? hoverModifierKey : defaultConfig.hoverModifierKey;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(rawSettings, 'inlineCopyButtons')) {
+    settings.inlineCopyButtons = rawSettings.inlineCopyButtons !== false;
   }
 
   if (isObject(rawSettings.displayFields)) {

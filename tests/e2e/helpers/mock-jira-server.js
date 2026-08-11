@@ -53,6 +53,127 @@ function text(res, statusCode, payload) {
   res.end(payload);
 }
 
+function html(res, statusCode, payload) {
+  res.writeHead(statusCode, {
+    'content-type': 'text/html; charset=utf-8',
+  });
+  res.end(payload);
+}
+
+function buildCloudIssuePage(state) {
+  return `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHtml(state.issue.key)} - ${escapeHtml(state.issue.summary)}</title>
+        <style>
+          body { background: #f7f8f9; color: #172b4d; font: 14px Arial, sans-serif; margin: 0; }
+          main { background: #fff; margin: 48px auto; max-width: 920px; padding: 32px 40px; }
+          .breadcrumbs { align-items: center; display: flex; gap: 6px; }
+          .breadcrumbs a { color: #44546f; font-weight: 600; text-decoration: none; }
+          h1 { font-size: 24px; margin: 20px 0 8px; }
+          p { color: #5e6c84; }
+        </style>
+      </head>
+      <body>
+        <main>
+          <div class="breadcrumbs" data-testid="issue.views.issue-base.foundation.breadcrumbs.breadcrumb-current-issue-container">
+            <a href="/browse/${escapeHtml(state.issue.key)}" data-testid="issue-key-link">${escapeHtml(state.issue.key)}</a>
+          </div>
+          <h1 data-testid="issue.views.issue-base.foundation.summary.heading">${escapeHtml(state.issue.summary)}</h1>
+          <p>Mock Jira Cloud issue details</p>
+        </main>
+      </body>
+    </html>`;
+}
+
+function buildCloudIssueSearchPage(state) {
+  const issues = [state.issue, ...state.issueSearchCatalog.slice(0, 2).map(issue => ({
+    key: issue.key,
+    summary: issue.fields.summary,
+  }))];
+  const rows = issues.map(issue => `
+    <article class="issue-row" data-issue-key="${escapeHtml(issue.key)}">
+      <span class="issue-key-cell"><a class="issue-key" href="/browse/${escapeHtml(issue.key)}">${escapeHtml(issue.key)}</a></span>
+      <a class="issue-summary" href="/browse/${escapeHtml(issue.key)}">${escapeHtml(issue.summary)}</a>
+      <span class="status">To Do</span>
+    </article>`).join('');
+  return `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Issue navigator</title>
+        <style>
+          body { background: #f1f2f4; color: #172b4d; font: 14px Arial, sans-serif; margin: 0; }
+          main { background: #fff; margin: 42px auto; max-width: 980px; padding: 28px 34px; }
+          h1 { font-size: 24px; margin: 0 0 20px; }
+          .issue-row { align-items: center; border-top: 1px solid #dfe1e6; display: grid; gap: 12px; grid-template-columns: 170px 1fr 90px; min-height: 50px; }
+          .issue-key { color: #0c66e4; font-weight: 600; text-decoration: none; }
+          .issue-key-cell { align-items: center; display: inline-flex; }
+          .issue-summary { color: #172b4d; text-decoration: none; }
+          .status { color: #5e6c84; font-size: 12px; }
+        </style>
+      </head>
+      <body><main><h1>Issues</h1><section id="issue-results">${rows}</section></main></body>
+    </html>`;
+}
+
+function buildCloudBoardPage(state) {
+  const issues = [state.issue, ...state.issueSearchCatalog.slice(0, 2).map(issue => ({
+    key: issue.key,
+    summary: issue.fields.summary,
+  }))];
+  const cards = issues.map(issue => `
+    <article class="board-card" data-issue-key="${escapeHtml(issue.key)}">
+      <div class="card-key-row"><span class="card-key" data-testid="platform-card.ui.key.key">${escapeHtml(issue.key)}</span></div>
+      <strong class="card-summary" data-testid="platform-card.ui.summary">${escapeHtml(issue.summary)}</strong>
+      <span class="card-meta">To Do</span>
+    </article>`).join('');
+  return `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>JRACLOUD board</title>
+        <style>
+          body { background: #f1f2f4; color: #172b4d; font: 14px Arial, sans-serif; margin: 0; }
+          main { margin: 38px auto; max-width: 1040px; }
+          h1 { font-size: 24px; }
+          .board-column { background: #dfe1e6; border-radius: 10px; display: grid; gap: 12px; padding: 16px; width: 320px; }
+          .board-card { background: #fff; border-radius: 6px; box-shadow: 0 1px 2px rgba(9, 30, 66, .2); display: grid; gap: 10px; padding: 14px; }
+          .card-key-row { align-items: center; display: flex; }
+          .card-key { color: #44546f; font-size: 12px; font-weight: 600; }
+          .card-summary { font-size: 14px; line-height: 1.35; }
+          .card-meta { color: #6b778c; font-size: 11px; }
+        </style>
+      </head>
+      <body><main><h1>JRACLOUD board</h1><section class="board-column">${cards}</section></main></body>
+    </html>`;
+}
+
+function buildDataCenterIssuePage(state) {
+  return `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHtml(state.issue.key)} - ${escapeHtml(state.issue.summary)}</title>
+        <style>
+          body { background: #f4f5f7; color: #172b4d; font: 14px Arial, sans-serif; margin: 0; }
+          main { background: #fff; margin: 48px auto; max-width: 920px; padding: 32px 40px; }
+          .issue-header-content { align-items: center; display: flex; gap: 8px; }
+          #key-val { color: #42526e; font-weight: 600; text-decoration: none; }
+          #summary-val { font-size: 24px; margin-top: 22px; }
+        </style>
+      </head>
+      <body>
+        <main>
+          <div class="issue-header-content"><a id="key-val" href="/jira/browse/${escapeHtml(state.issue.key)}">${escapeHtml(state.issue.key)}</a></div>
+          <h1 id="summary-val">${escapeHtml(state.issue.summary)}</h1>
+          <p>Mock Jira Data Center issue details</p>
+        </main>
+      </body>
+    </html>`;
+}
+
 function noContent(res) {
   res.writeHead(204, {'access-control-allow-origin': '*'});
   res.end();
@@ -819,6 +940,26 @@ async function createMockJiraServer() {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, origin);
     const pathname = url.pathname;
+
+    if (pathname === `/browse/${state.issue.key}` && req.method === 'GET') {
+      html(res, 200, buildCloudIssuePage(state));
+      return;
+    }
+
+    if (pathname === '/issues/' && req.method === 'GET') {
+      html(res, 200, buildCloudIssueSearchPage(state));
+      return;
+    }
+
+    if (pathname === '/jira/software/projects/JRACLOUD/boards/77' && req.method === 'GET') {
+      html(res, 200, buildCloudBoardPage(state));
+      return;
+    }
+
+    if (pathname === `/jira/browse/${state.issue.key}` && req.method === 'GET') {
+      html(res, 200, buildDataCenterIssuePage(state));
+      return;
+    }
 
     if (pathname.startsWith('/assets/')) {
       const asset = readMockAsset(pathname.split('/').pop());

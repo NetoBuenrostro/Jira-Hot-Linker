@@ -24,6 +24,8 @@ import {createPopupCommentComposer} from 'src/popup-comment-composer';
 import {buildJiraSearchRequestUrls, isEpicLinkField, isParentLinkField, isSprintField} from 'src/jira-issue-helpers';
 import config, {buildTooltipLayoutFromDisplayFields} from 'options/config.js';
 import {DEFAULT_THEME_MODE, syncDocumentTheme} from 'src/theme';
+import {copyIssueReference} from 'src/issue-reference-copy';
+import {installJiraInlineCopyButtons} from 'src/jira-inline-copy';
 const {
   buildDescriptionEditorState,
   buildMediaSingleNodeFromAttachment,
@@ -32,6 +34,7 @@ const {
 } = require('src/description-rich-text');
 
 waitForDocument(() => require('src/content.scss'));
+waitForDocument(() => require('src/jira-inline-copy.scss'));
 
 // ── Config ──────────────────────────────────────────────────────
 
@@ -428,6 +431,13 @@ async function mainAsyncLocal() {
   const hoverDepth = config.hoverDepth || 'exact';
   const hoverModifierKey = config.hoverModifierKey || 'any';
   const customFields = normalizeCustomFields(config.customFields, tooltipLayout);
+  installJiraInlineCopyButtons({
+    document,
+    instanceUrl: INSTANCE_URL,
+    enabled: config.inlineCopyButtons !== false,
+    copy: reference => copyIssueReferenceWithFeedback(reference)
+      .catch(() => snackBar('There was an error!')),
+  });
   let stopSyncDocumentTheme = syncDocumentTheme(document, config.themeMode || DEFAULT_THEME_MODE);
   let jiraProjects = [];
   let getJiraKeys = buildFallbackJiraKeyMatcher();
@@ -5885,65 +5895,9 @@ async function mainAsyncLocal() {
   }, container);
   
   // ── Clipboard & Copy ──────────────────────────────────────
-  function buildPrettyLinkPayload(sourceElement) {
-    const url = sourceElement?.getAttribute('data-url') || sourceElement?.getAttribute('href') || '';
-    const ticket = sourceElement?.getAttribute('data-ticket') || '';
-    const title = sourceElement?.getAttribute('data-title') || '';
-    const label = `[${ticket}] ${title}`.trim();
-    const link = document.createElement('a');
-    link.href = url;
-    link.textContent = label;
-    return {
-      html: link.outerHTML,
-      text: url
-    };
-  }
-
-  function copyPrettyLinkFallback(html, text) {
-    return new Promise((resolve, reject) => {
-      const onCopy = event => {
-        event.preventDefault();
-        event.clipboardData.setData('text/html', html);
-        event.clipboardData.setData('text/plain', text);
-      };
-      document.addEventListener('copy', onCopy, {once: true});
-      const success = document.execCommand('copy');
-      if (!success) {
-        reject(new Error('Copy command failed'));
-        return;
-      }
-      resolve();
-    });
-  }
-
-  async function copyPrettyLink(sourceElement) {
-    const {html, text} = buildPrettyLinkPayload(sourceElement);
-    try {
-      if (navigator.clipboard && window.ClipboardItem && navigator.clipboard.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([html], {type: 'text/html'}),
-            'text/plain': new Blob([text], {type: 'text/plain'})
-          })
-        ]);
-        snackBar('Copied!');
-        return;
-      }
-    } catch (ex) {
-      // fall through to fallback copy path
-    }
-
-    try {
-      await copyPrettyLinkFallback(html, text);
-      snackBar('Copied!');
-    } catch (ex) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        snackBar('Copied as text');
-      } else {
-        snackBar('There was an error!');
-      }
-    }
+  async function copyIssueReferenceWithFeedback(reference) {
+    const result = await copyIssueReference(reference);
+    snackBar(result === 'text' ? 'Copied as text' : 'Copied!');
   }
 
   // ── Event Handlers ────────────────────────────────────────
@@ -5955,7 +5909,11 @@ async function mainAsyncLocal() {
 
   $(document.body).on('click', '._JX_copy_link', function (e) {
     e.preventDefault();
-    copyPrettyLink(e.currentTarget).catch(() => snackBar('There was an error!'));
+    copyIssueReferenceWithFeedback({
+      key: e.currentTarget.getAttribute('data-ticket') || '',
+      summary: e.currentTarget.getAttribute('data-title') || '',
+      url: e.currentTarget.getAttribute('data-url') || e.currentTarget.getAttribute('href') || '',
+    }).catch(() => snackBar('There was an error!'));
   });
 
   $(document.body).on('click', '._JX_close_button', function (e) {

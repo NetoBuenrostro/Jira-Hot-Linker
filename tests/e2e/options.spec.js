@@ -285,6 +285,25 @@ test('persists hover behavior settings through the options page', async ({option
   expect(stored.hoverModifierKey).toBe('shift');
 });
 
+test('enables Jira inline copy buttons by default and persists the preference', async ({optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: false});
+  const form = optionsPageModel(optionsPage);
+  await configureExtension(optionsPage, baseConfig(servers, target));
+  await optionsPage.reload();
+
+  await expect(form.inlineCopyButtonsCheckbox).toBeChecked();
+  await optionsPage.getByText('Show copy buttons in Jira', {exact: true}).click();
+  await expect(form.inlineCopyButtonsCheckbox).not.toBeChecked();
+  await expect(form.statusPill).toContainText('Unsaved changes.');
+  await form.saveButton.click();
+  await expect(form.saveNotice).toContainText('Options saved successfully.');
+
+  await optionsPage.reload();
+  await expect(form.inlineCopyButtonsCheckbox).not.toBeChecked();
+  const stored = await optionsPage.evaluate(async () => chrome.storage.sync.get(['inlineCopyButtons']));
+  expect(stored.inlineCopyButtons).toBe(false);
+});
+
 test('persists reordered content blocks through the options page', async ({optionsPage, servers}) => {
   const target = requireJiraTestTarget(test, servers, {requireAuth: false});
   const form = optionsPageModel(optionsPage);

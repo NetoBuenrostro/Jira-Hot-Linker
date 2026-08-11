@@ -90,6 +90,7 @@ function ConfigPage(props) {
   });
   const [hoverDepth, setHoverDepth] = useState(props.hoverDepth || 'shallow');
   const [hoverModifierKey, setHoverModifierKey] = useState(props.hoverModifierKey || 'none');
+  const [inlineCopyButtons, setInlineCopyButtons] = useState(props.inlineCopyButtons !== false);
   const [customFields, setCustomFields] = useState(() =>
     normalizeCustomFields(props.customFields, initialTooltipLayout).map((f, i) => ({...f, _uid: f._uid || `cf-${Date.now()}-${i}`}))
   );
@@ -116,6 +117,7 @@ function ConfigPage(props) {
     themeMode: normalizeThemeMode(props.themeMode || DEFAULT_THEME_MODE),
     hoverDepth: props.hoverDepth || 'shallow',
     hoverModifierKey: props.hoverModifierKey || 'none',
+    inlineCopyButtons: props.inlineCopyButtons !== false,
     tooltipLayout,
     customFields,
   }));
@@ -125,6 +127,7 @@ function ConfigPage(props) {
     themeMode,
     hoverDepth,
     hoverModifierKey,
+    inlineCopyButtons,
     tooltipLayout,
     customFields,
   });
@@ -161,6 +164,7 @@ function ConfigPage(props) {
     const nextThemeMode = normalizeThemeMode(config.themeMode || DEFAULT_THEME_MODE);
     const nextHoverDepth = config.hoverDepth || 'shallow';
     const nextHoverModifierKey = config.hoverModifierKey || 'none';
+    const nextInlineCopyButtons = config.inlineCopyButtons !== false;
     const nextCustomFields = normalizeCustomFields(config.customFields, nextTooltipLayout)
       .map((f, i) => ({...f, _uid: f._uid || `cf-${Date.now()}-${i}`}));
 
@@ -169,6 +173,7 @@ function ConfigPage(props) {
     setThemeMode(nextThemeMode);
     setHoverDepth(nextHoverDepth);
     setHoverModifierKey(nextHoverModifierKey);
+    setInlineCopyButtons(nextInlineCopyButtons);
     setDisplayFields({
       ...defaultConfig.displayFields,
       ...(config.displayFields || {})
@@ -181,6 +186,7 @@ function ConfigPage(props) {
       themeMode: nextThemeMode,
       hoverDepth: nextHoverDepth,
       hoverModifierKey: nextHoverModifierKey,
+      inlineCopyButtons: nextInlineCopyButtons,
       tooltipLayout: nextTooltipLayout,
       customFields: nextCustomFields,
     });
@@ -345,6 +351,7 @@ function ConfigPage(props) {
       themeMode,
       hoverDepth,
       hoverModifierKey,
+      inlineCopyButtons,
       displayFields,
       tooltipLayout,
       customFields: normalizeCustomFields(customFields, tooltipLayout)
@@ -386,6 +393,7 @@ function ConfigPage(props) {
         setThemeMode(normalizeThemeMode(config.themeMode || 'system'));
         setHoverDepth(config.hoverDepth || 'shallow');
         setHoverModifierKey(config.hoverModifierKey || 'none');
+        setInlineCopyButtons(config.inlineCopyButtons !== false);
         setDisplayFields(config.displayFields || defaultConfig.displayFields);
         const nextTooltipLayout = config.tooltipLayout || defaultConfig.tooltipLayout;
         setTooltipLayout(nextTooltipLayout);
@@ -615,6 +623,7 @@ function ConfigPage(props) {
         v15upgrade: true,
         hoverDepth,
         hoverModifierKey,
+        inlineCopyButtons,
         displayFields,
         tooltipLayout,
         customFields: normalizeCustomFields(customFields, tooltipLayout)
@@ -779,6 +788,19 @@ function ConfigPage(props) {
             <div className='tipBox'>
               Tip: Most users keep the default System setting. Switch to Light or Dark only if you prefer a fixed appearance regardless of your OS theme.
             </div>
+            <label className='inlineCopySetting'>
+              <input
+                type='checkbox'
+                data-testid='options-inline-copy-buttons'
+                checked={inlineCopyButtons}
+                onChange={event => setInlineCopyButtons(event.target.checked)}
+              />
+              <span className='inlineCopySettingSwitch' aria-hidden='true' />
+              <span className='inlineCopySettingCopy'>
+                <strong>Show copy buttons in Jira</strong>
+                <span>Add a copy action beside issue keys on Jira details, search results, boards, and backlogs.</span>
+              </span>
+            </label>
           </div>
         </section>
 

@@ -2002,3 +2002,73 @@ button:disabled {
   font-size: 11px;
   color: #64748b;
 }
+
+.inlineCopySetting {
+  align-items: center;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+
+  input {
+    height: 1px;
+    opacity: 0;
+    position: absolute;
+    width: 1px;
+  }
+
+  input:focus-visible + .inlineCopySettingSwitch {
+    box-shadow: var(--input-focus-ring);
+  }
+
+  input:checked + .inlineCopySettingSwitch {
+    background: var(--section-title-color);
+
+    &::after {
+      transform: translateX(16px);
+    }
+  }
+}
+
+.inlineCopySettingSwitch {
+  background: var(--input-border);
+  border-radius: 10px;
+  flex: 0 0 36px;
+  height: 20px;
+  position: relative;
+  transition: background-color 120ms ease;
+
+  &::after {
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
+    content: '';
+    height: 16px;
+    left: 2px;
+    position: absolute;
+    top: 2px;
+    transition: transform 120ms ease;
+    width: 16px;
+  }
+}
+
+.inlineCopySettingCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  strong {
+    color: var(--page-text);
+    font-size: 13px;
+  }
+
+  span {
+    color: var(--copy-muted);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}
