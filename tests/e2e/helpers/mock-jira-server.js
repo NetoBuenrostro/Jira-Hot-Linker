@@ -431,9 +431,10 @@ function createState(origin) {
         key: 'JRACLOUD-97000',
         fields: {
           summary: 'Editor backlog umbrella',
+          project: {key: 'JRACLOUD', id: '10000'},
           issuetype: {
-            id: '2',
-            name: 'Task',
+            id: '10000',
+            name: 'Epic',
             iconUrl: `${origin}/assets/issuetype-task.png`,
           },
           status: {
@@ -448,10 +449,47 @@ function createState(origin) {
         key: 'JRACLOUD-98123',
         fields: {
           summary: 'Improve slash command cursor stability',
+          project: {key: 'JRACLOUD', id: '10000'},
           issuetype: {
-            id: '1',
-            name: 'Bug',
+            id: '10000',
+            name: 'Epic',
             iconUrl: `${origin}/assets/issuetype-bug.png`,
+          },
+          status: {
+            id: '10000',
+            name: 'To Do',
+            iconUrl: `${origin}/assets/status-todo.png`,
+          },
+        },
+      },
+      {
+        id: '20001',
+        key: 'PLATFORM-101',
+        fields: {
+          summary: 'Cross-project platform initiative',
+          project: {key: 'PLATFORM', id: '20000'},
+          issuetype: {
+            id: '10000',
+            name: 'Epic',
+            iconUrl: `${origin}/assets/issuetype-task.png`,
+          },
+          status: {
+            id: '10000',
+            name: 'To Do',
+            iconUrl: `${origin}/assets/status-todo.png`,
+          },
+        },
+      },
+      {
+        id: '10004',
+        key: 'JRACLOUD-99999',
+        fields: {
+          summary: 'A story cannot parent another story',
+          project: {key: 'JRACLOUD', id: '10000'},
+          issuetype: {
+            id: '2',
+            name: 'Task',
+            iconUrl: `${origin}/assets/issuetype-task.png`,
           },
           status: {
             id: '10000',
@@ -809,6 +847,16 @@ async function createMockJiraServer() {
         {id: 'customfield_10020', name: 'Sprint', schema: {custom: 'com.pyxis.greenhopper.jira:gh-sprint', type: 'array'}},
         {id: 'customfield_12345', name: 'Customer Impact'},
         {id: 'customfield_67890', name: 'Reviewer', schema: {type: 'user', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:userpicker'}},
+      ]);
+      return;
+    }
+
+    if ((pathname === '/rest/api/3/issuetype' || pathname === '/rest/api/2/issuetype') && req.method === 'GET') {
+      json(res, 200, [
+        {id: '1', name: 'Bug', subtask: false, hierarchyLevel: 0},
+        {id: '2', name: 'Task', subtask: false, hierarchyLevel: 0},
+        {id: '4', name: 'Sub-task', subtask: true, hierarchyLevel: -1},
+        {id: '10000', name: 'Epic', subtask: false, hierarchyLevel: 1},
       ]);
       return;
     }
@@ -1192,7 +1240,27 @@ async function createMockJiraServer() {
         json(res, 500, {errorMessages: ['Could not load child issues']});
         return;
       }
-      json(res, 200, {issues: isChildSearch ? state.childIssues : state.issueSearchCatalog});
+      let issues = isChildSearch ? state.childIssues : state.issueSearchCatalog;
+      if (!isChildSearch) {
+        const projectEquals = jql.match(/\bproject\s*=\s*"?([A-Z][A-Z0-9_]*)"?/i);
+        const projectNotEquals = jql.match(/\bproject\s*!=\s*"?([A-Z][A-Z0-9_]*)"?/i);
+        if (projectEquals) {
+          issues = issues.filter(issue => String(issue?.fields?.project?.key || issue?.key || '').split('-')[0] === projectEquals[1]);
+        } else if (projectNotEquals) {
+          issues = issues.filter(issue => String(issue?.fields?.project?.key || issue?.key || '').split('-')[0] !== projectNotEquals[1]);
+        }
+        if (/\bissuetype\s*=\s*Epic\b/i.test(jql)) {
+          issues = issues.filter(issue => String(issue?.fields?.issuetype?.name || '').toLowerCase() === 'epic');
+        }
+        const issueTypeIds = jql.match(/\bissuetype\s+in\s*\(([^)]+)\)/i)?.[1]
+          ?.split(',')
+          .map(value => value.trim().replace(/^"|"$/g, ''))
+          .filter(value => /^\d+$/.test(value));
+        if (issueTypeIds?.length) {
+          issues = issues.filter(issue => issueTypeIds.includes(String(issue?.fields?.issuetype?.id || '')));
+        }
+      }
+      json(res, 200, {issues});
       return;
     }
 

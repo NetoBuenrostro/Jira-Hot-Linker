@@ -97,7 +97,7 @@ export function createContentIssueLinkageHelpers(options) {
     }
     return {
       mode: 'epicLink',
-      label: 'Epic',
+      label: 'Parent',
       editable: !!editMeta.fields?.[epicFieldId],
       fieldKey: epicFieldId,
       currentLink: epicKey
@@ -134,6 +134,84 @@ export function createContentIssueLinkageHelpers(options) {
   function buildIssueSearchCacheKey(query, issueData, mode) {
     const projectKey = String(issueData?.key || '').split('-')[0];
     return `${projectKey}__${mode}__${String(query || '').trim().toLowerCase()}`;
+  }
+
+  async function getVisibleIssueTypes() {
+    return getCachedValue(issueSearchCache, '__visible_issue_types__', async () => {
+      const urls = [
+        `${instanceUrl}rest/api/3/issuetype`,
+        `${instanceUrl}rest/api/2/issuetype`,
+      ];
+      let lastError = null;
+      for (const url of urls) {
+        try {
+          const response = await get(url);
+          if (Array.isArray(response)) {
+            return response;
+          }
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError || new Error('Could not load Jira issue types.');
+    });
+  }
+
+  function buildIssueTypeClause(issueTypeIds) {
+    const ids = [...new Set((issueTypeIds || []).map(id => String(id || '').trim()).filter(Boolean))];
+    if (!ids.length) {
+      return '';
+    }
+    return `issuetype in (${ids.map(encodeJqlValue).join(', ')})`;
+  }
+
+  async function resolveParentCandidateConstraint(issueData, linkageMode) {
+    const issueType = issueData?.fields?.issuetype || {};
+    let issueTypes = [];
+    try {
+      issueTypes = await getVisibleIssueTypes();
+    } catch (error) {
+      issueTypes = [];
+    }
+
+    const currentType = issueTypes.find(type => String(type?.id || '') === String(issueType?.id || '')) || issueType;
+    const hasHierarchyMetadata = issueTypes.some(type => Number.isFinite(Number(type?.hierarchyLevel)));
+
+    if (linkageMode === 'epicLink') {
+      if (hasHierarchyMetadata) {
+        const typeIds = issueTypes
+          .filter(type => Number(type?.hierarchyLevel) === 1)
+          .map(type => type.id);
+        const clause = buildIssueTypeClause(typeIds);
+        if (clause) {
+          return {clause, allowedTypeIds: new Set(typeIds.map(String)), sameProjectOnly: false};
+        }
+      }
+      // Jira Data Center keeps "Epic" as the advanced-search term even when
+      // administrators rename the Epic terminology.
+      return {clause: 'issuetype = Epic', allowedTypeIds: null, sameProjectOnly: false};
+    }
+
+    const currentHierarchyLevel = Number(currentType?.hierarchyLevel);
+    if (hasHierarchyMetadata && Number.isFinite(currentHierarchyLevel)) {
+      const typeIds = issueTypes
+        .filter(type => Number(type?.hierarchyLevel) === currentHierarchyLevel + 1)
+        .map(type => type.id);
+      const clause = buildIssueTypeClause(typeIds);
+      if (clause) {
+        return {clause, allowedTypeIds: new Set(typeIds.map(String)), sameProjectOnly: false};
+      }
+    }
+
+    if (currentType?.subtask === true || issueType?.subtask === true) {
+      // Data Center's native Parent field is used for subtasks and their parent
+      // must be a standard issue in the same project.
+      return {clause: 'issuetype in standardIssueTypes()', allowedTypeIds: null, sameProjectOnly: true};
+    }
+
+    // Safe compatibility fallback for Cloud instances where issue-type hierarchy
+    // metadata is unavailable: a base-level work item can only select an Epic.
+    return {clause: 'issuetype = Epic', allowedTypeIds: null, sameProjectOnly: false};
   }
 
   function getRecentIssueSearchOptions(issueData, mode) {
@@ -193,41 +271,79 @@ export function createContentIssueLinkageHelpers(options) {
     const cacheKey = buildIssueSearchCacheKey(normalizedQuery, issueData, linkageMode || 'linkage');
     return getCachedValue(issueSearchCache, cacheKey, async () => {
       const escapedIssueKey = encodeJqlValue(issueKey);
-      const isEpicLinkMode = linkageMode === 'epicLink';
-      const jqlParts = [`key != ${escapedIssueKey}`];
-      if (!isEpicLinkMode) {
-        const escapedProjectKey = encodeJqlValue(projectKey);
-        jqlParts.unshift(`project = ${escapedProjectKey}`);
-      }
+      const escapedProjectKey = encodeJqlValue(projectKey);
+      const constraint = await resolveParentCandidateConstraint(issueData, linkageMode);
       const searchClauses = buildSafeIssueSearchClauses(normalizedQuery, projectKey);
+      const commonParts = [`key != ${escapedIssueKey}`, constraint.clause];
       if (searchClauses.length) {
-        jqlParts.push(`(${searchClauses.join(' OR ')})`);
+        commonParts.push(`(${searchClauses.join(' OR ')})`);
       }
-      const jql = `${jqlParts.join(' AND ')} ORDER BY updated DESC`;
-      let response = null;
-      let lastError = null;
-      const requestUrls = buildJiraSearchRequestUrls(instanceUrl, {
-        maxResults: 20,
-        fields: ['summary', 'issuetype', 'status'],
-        jql,
-      });
 
-      for (const requestUrl of requestUrls) {
-        try {
-          response = await get(requestUrl);
-          break;
-        } catch (error) {
-          lastError = error;
+      const search = async projectClause => {
+        const jql = `${projectClause} AND ${commonParts.join(' AND ')} ORDER BY summary ASC`;
+        let lastError = null;
+        for (const requestUrl of buildJiraSearchRequestUrls(instanceUrl, {
+          maxResults: 30,
+          fields: ['summary', 'issuetype', 'status', 'project'],
+          jql,
+        })) {
+          try {
+            return await get(requestUrl);
+          } catch (error) {
+            lastError = error;
+          }
         }
+        throw lastError || new Error('Issue search failed.');
+      };
+
+      const searches = [search(`project = ${escapedProjectKey}`)];
+      if (!constraint.sameProjectOnly) {
+        searches.push(search(`project != ${escapedProjectKey}`));
+      }
+      const responses = await Promise.allSettled(searches);
+      const issues = responses.flatMap(result => result.status === 'fulfilled' && Array.isArray(result.value?.issues)
+        ? result.value.issues
+        : []);
+      if (!issues.length && responses.every(result => result.status === 'rejected')) {
+        throw responses[0].reason || new Error('Issue search failed.');
       }
 
-      if (!response) {
-        throw lastError || new Error('Issue search failed.');
-      }
-      const issues = Array.isArray(response?.issues) ? response.issues : [];
-      const options = issues
-        .map(issue => buildIssueSearchOption(issue))
-        .filter(option => option.id);
+      const seen = new Set();
+      const candidates = issues.filter(issue => {
+        const candidateKey = String(issue?.key || '').trim();
+        const candidateTypeId = String(issue?.fields?.issuetype?.id || issue?.issuetype?.id || '');
+        if (!candidateKey || seen.has(candidateKey)) {
+          return false;
+        }
+        if (constraint.allowedTypeIds && !constraint.allowedTypeIds.has(candidateTypeId)) {
+          return false;
+        }
+        seen.add(candidateKey);
+        return true;
+      });
+      candidates.sort((left, right) => {
+        const leftProject = String(left?.fields?.project?.key || left?.key || '').split('-')[0];
+        const rightProject = String(right?.fields?.project?.key || right?.key || '').split('-')[0];
+        const leftIsLocal = leftProject === projectKey;
+        const rightIsLocal = rightProject === projectKey;
+        if (leftIsLocal !== rightIsLocal) {
+          return leftIsLocal ? -1 : 1;
+        }
+        return String(left?.fields?.summary || left?.key || '').localeCompare(
+          String(right?.fields?.summary || right?.key || ''),
+          undefined,
+          {numeric: true, sensitivity: 'base'}
+        );
+      });
+      const options = candidates.map(issue => {
+        const candidateProjectKey = String(issue?.fields?.project?.key || issue?.key || '').split('-')[0];
+        const isLocalProject = candidateProjectKey === projectKey;
+        return buildIssueSearchOption(issue, {
+          groupKey: isLocalProject ? `project:${projectKey}` : '__other_projects__',
+          groupLabel: isLocalProject ? `${projectKey} project` : 'Other projects',
+          groupSortKey: isLocalProject ? '0' : '1',
+        });
+      }).filter(option => option.id);
       setRecentIssueSearchOptions(issueData, linkageMode || 'linkage', options);
       return options;
     });
