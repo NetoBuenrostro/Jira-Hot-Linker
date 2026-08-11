@@ -5669,7 +5669,8 @@ async function mainAsyncLocal() {
     if (!selectableOptions.length) {
       return false;
     }
-    const currentIndex = selectableOptions.findIndex(option => option.id === popupState.editState.highlightedOptionId);
+    const currentOption = getHighlightedFieldEditOption(popupState.editState);
+    const currentIndex = selectableOptions.findIndex(option => option.id === currentOption?.id);
     const nextIndex = currentIndex === -1
       ? (direction > 0 ? 0 : selectableOptions.length - 1)
       : Math.max(0, Math.min(selectableOptions.length - 1, currentIndex + direction));
