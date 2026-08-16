@@ -145,6 +145,72 @@ test('adds copy buttons to Jira board cards without issue links @mock-only', asy
   await page.close();
 });
 
+test('scopes legacy Active Sprints copy buttons to the hovered card and keeps them beside the key @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: false});
+  test.skip(target.mode !== 'mock', 'Inline Jira UI coverage is deterministic in mocked mode only.');
+
+  await configureExtension(optionsPage, buildExtensionConfig(servers, {
+    domains: [servers.jira.origin],
+  }, target));
+
+  const page = await extensionApp.context.newPage();
+  await page.goto(`${servers.jira.origin}/jira/software/projects/JRACLOUD/boards/77`);
+  await injectContentScript(extensionApp, page);
+  await page.evaluate(() => {
+    document.body.innerHTML = `
+      <main>
+        <ol class="ghx-swimlanes">
+          <li class="ghx-swimlane">
+            <article class="ghx-issue" data-issue-key="JRACLOUD-97000">
+              <div class="ghx-row">
+                <div class="ghx-key"><a href="/browse/JRACLOUD-97000">JRACLOUD-97000</a></div>
+                <span class="ghx-avatar">MA</span>
+              </div>
+              <div class="ghx-summary">Editor backlog umbrella</div>
+            </article>
+            <article class="ghx-issue" data-issue-key="JRACLOUD-98123">
+              <div class="ghx-row">
+                <div class="ghx-key"><a href="/browse/JRACLOUD-98123">JRACLOUD-98123</a></div>
+                <span class="ghx-avatar">AR</span>
+              </div>
+              <div class="ghx-summary">Improve slash command cursor stability</div>
+            </article>
+          </li>
+        </ol>
+      </main>
+      <style>
+        .ghx-swimlanes { list-style: none; margin: 0; padding: 24px; width: 280px; }
+        .ghx-issue { background: white; border: 1px solid #dfe1e6; margin-top: 8px; padding: 10px; }
+        .ghx-row { align-items: flex-start; display: flex; justify-content: space-between; }
+        .ghx-key { flex: 1; }
+        .ghx-key > a { display: block; }
+        .ghx-avatar { border-radius: 50%; }
+      </style>`;
+  });
+
+  const firstCard = page.locator('[data-issue-key="JRACLOUD-97000"]');
+  const firstKey = firstCard.locator('.ghx-key > a');
+  const firstButton = page.getByRole('button', {name: 'Copy JRACLOUD-97000 issue link'});
+  const secondButton = page.getByRole('button', {name: 'Copy JRACLOUD-98123 issue link'});
+  await expect(firstButton).toHaveCount(1);
+  await expect(secondButton).toHaveCount(1);
+
+  await firstCard.hover();
+  await expect(firstButton).toHaveCSS('opacity', '1');
+  expect.soft(await secondButton.evaluate(element => getComputedStyle(element).opacity)).toBe('0');
+
+  const [keyBox, buttonBox] = await Promise.all([firstKey.boundingBox(), firstButton.boundingBox()]);
+  expect(keyBox).not.toBeNull();
+  expect(buttonBox).not.toBeNull();
+  const keyCenterY = keyBox.y + (keyBox.height / 2);
+  const buttonCenterY = buttonBox.y + (buttonBox.height / 2);
+  expect(Math.abs(buttonCenterY - keyCenterY)).toBeLessThan(4);
+  expect(buttonBox.x).toBeGreaterThanOrEqual(keyBox.x + keyBox.width);
+  await captureInlineCopyScreenshot(page.locator('main'), 'jira-inline-copy-active-sprints-fixed.png');
+
+  await page.close();
+});
+
 test('does not add Jira copy buttons when the preference is disabled @mock-only', async ({extensionApp, optionsPage, servers}) => {
   const target = requireJiraTestTarget(test, servers, {requireAuth: false});
   test.skip(target.mode !== 'mock', 'Inline Jira UI coverage is deterministic in mocked mode only.');

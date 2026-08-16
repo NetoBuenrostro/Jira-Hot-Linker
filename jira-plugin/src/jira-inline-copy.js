@@ -19,6 +19,7 @@ const RESULT_KEY_SELECTORS = [
   '.issue-key',
   '.card-key',
 ];
+const RESULT_CONTAINER_SELECTOR = '[data-issue-key], [data-issuekey], tr, [role="row"], article, li';
 
 function getIssueKey(element) {
   const dataKey = String(
@@ -47,8 +48,12 @@ function getIssueSummary(documentRef) {
   return '';
 }
 
+function getResultContainer(issueElement) {
+  return issueElement.closest(RESULT_CONTAINER_SELECTOR);
+}
+
 function getResultSummary(issueElement, key) {
-  const container = issueElement.closest('[data-issue-key], [data-issuekey], tr, [role="row"], article, li');
+  const container = getResultContainer(issueElement);
   if (!container) {
     return '';
   }
@@ -212,6 +217,16 @@ function removeStaleCopyButtons(issueElement, key) {
   }
 }
 
+function insertResultCopyButton(documentRef, issueElement, reference, copy) {
+  const container = getResultContainer(issueElement);
+  if (!container) {
+    return;
+  }
+  container.classList.add('_JX_inline_copy_scope');
+  issueElement.classList.add('_JX_inline_copy_anchor');
+  issueElement.insertAdjacentElement('afterend', createCopyButton(documentRef, reference, copy, 'result'));
+}
+
 export function installJiraInlineCopyButtons({document: documentRef, instanceUrl, enabled = true, copy}) {
   if (!enabled || !documentRef?.body || typeof copy !== 'function') {
     return () => {};
@@ -268,11 +283,11 @@ export function installJiraInlineCopyButtons({document: documentRef, instanceUrl
       if (!resultSummary) {
         continue;
       }
-      issueElement.insertAdjacentElement('afterend', createCopyButton(documentRef, {
+      insertResultCopyButton(documentRef, issueElement, {
         key,
         summary: resultSummary,
         url: buildIssueUrl(instanceUrl, key),
-      }, copy, 'result'));
+      }, copy);
     }
 
     for (const container of documentRef.querySelectorAll('[data-issue-key], [data-issuekey]')) {
@@ -290,11 +305,11 @@ export function installJiraInlineCopyButtons({document: documentRef, instanceUrl
       if (!resultSummary) {
         continue;
       }
-      issueElement.insertAdjacentElement('afterend', createCopyButton(documentRef, {
+      insertResultCopyButton(documentRef, issueElement, {
         key,
         summary: resultSummary,
         url: buildIssueUrl(instanceUrl, key),
-      }, copy, 'result'));
+      }, copy);
     }
   };
   const scheduleScan = () => {
