@@ -100,6 +100,8 @@ export function createEmptyLinkedIssuesState() {
     relationshipId: '',
     issueDetailsByKey: {},
     searchValue: '',
+    searchSelectionStart: 0,
+    searchSelectionEnd: 0,
     searchLoading: false,
     searchRequestId: 0,
     searchResults: [],
