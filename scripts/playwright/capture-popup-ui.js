@@ -29,6 +29,47 @@ const baseTooltipLayout = {
 };
 
 const PRESETS = {
+  'linked-issues-panel': {
+    outputFile: 'linked-issues-panel.png',
+    configureOverrides: {},
+    targetSelector: '._JX_linked_issues_panel',
+    waitForSelector: '._JX_linked_issues_row',
+    open: async page => {
+      await page.locator('._JX_linked_issues_trigger').click();
+    },
+  },
+  'linked-issues-search': {
+    outputFile: 'linked-issues-search.png',
+    configureOverrides: {},
+    targetSelector: '._JX_linked_issues_panel',
+    waitForSelector: '._JX_linked_issues_search_result',
+    open: async page => {
+      await page.locator('._JX_linked_issues_trigger').click();
+      await page.locator('._JX_linked_issues_search_input').fill('API');
+    },
+  },
+  'linked-issues-multi-select': {
+    outputFile: 'linked-issues-multi-select.png',
+    configureOverrides: {},
+    targetSelector: '._JX_linked_issues_panel',
+    waitForSelector: '._JX_linked_issues_selected_chip',
+    open: async page => {
+      await page.locator('._JX_linked_issues_trigger').click();
+      await page.locator('._JX_linked_issues_search_input').fill('JRACLOUD-99001, API-204');
+    },
+  },
+  'linked-issues-remove-confirmation': {
+    outputFile: 'linked-issues-remove-confirmation.png',
+    configureOverrides: {},
+    targetSelector: '._JX_linked_issues_panel',
+    waitForSelector: '._JX_linked_issues_remove_confirmation',
+    open: async page => {
+      await page.locator('._JX_linked_issues_trigger').click();
+      const row = page.locator('._JX_linked_issues_row[data-issue-key="JRACLOUD-98123"]');
+      await row.hover();
+      await row.locator('._JX_linked_issues_remove').click();
+    },
+  },
   'history-panel': {
     outputFile: 'history-panel-restyled.png',
     configureOverrides: {},

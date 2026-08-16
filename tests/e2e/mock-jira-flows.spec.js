@@ -1221,6 +1221,79 @@ test('adds and removes watchers from the popup panel in mocked mode @mock-only',
   await page.close();
 });
 
+test('views, searches, adds, and removes linked issues in mocked mode @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Linked issue mutation coverage currently uses the mock Jira server only.');
+  await servers.jira.setScenario('linked-issues');
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const trigger = page.getByTestId('jira-popup-linked-issues-trigger');
+  await expect(trigger).toContainText('3');
+
+  await trigger.click();
+  const panel = page.getByTestId('jira-popup-linked-issues-panel');
+  await expect(panel).toBeVisible();
+  const groupHeaders = panel.locator('._JX_linked_issues_section_header');
+  await expect(groupHeaders.filter({hasText: 'blocks'})).toBeVisible();
+  await expect(groupHeaders.filter({hasText: 'is blocked by'})).toBeVisible();
+  await expect(groupHeaders.filter({hasText: 'relates to'})).toBeVisible();
+  await expect(panel.locator('._JX_linked_issues_row')).toHaveCount(3);
+
+  const existingRow = panel.locator('._JX_linked_issues_row[data-issue-key="JRACLOUD-98123"]');
+  await expect(existingRow.locator('._JX_linked_issues_status')).toHaveText('To Do');
+  await expect(existingRow.locator('._JX_linked_issues_assignee')).toHaveAttribute('title', 'Assignee: Morgan Agent');
+
+  const searchInput = panel.getByTestId('jira-popup-linked-issues-search');
+  await searchInput.fill('API');
+  const results = panel.locator('._JX_linked_issues_search_result');
+  await expect(results).toHaveCount(3);
+  await expect(results.first()).toHaveAttribute('data-issue-key', 'JRACLOUD-99001');
+  await expect(results.first()).not.toContainText('Same project');
+
+  await searchInput.fill('JRACLOUD-99001, API-204');
+  await expect(panel.locator('._JX_linked_issues_selected_chip')).toHaveCount(2);
+  await expect(searchInput).toHaveValue('');
+
+  await panel.getByTestId('jira-popup-linked-issues-add').click();
+  await expect(trigger).toContainText('5');
+  await expect(panel.locator('._JX_linked_issues_row[data-issue-key="JRACLOUD-99001"]')).toBeVisible();
+  await expect(panel.locator('._JX_linked_issues_row[data-issue-key="API-204"]')).toBeVisible();
+
+  await existingRow.hover();
+  await existingRow.locator('._JX_linked_issues_remove').click();
+  await expect(existingRow.locator('._JX_linked_issues_remove_confirmation')).toBeVisible();
+  await existingRow.locator('._JX_linked_issues_remove_confirm').click();
+  await expect(trigger).toContainText('4');
+  await expect(panel.locator('._JX_linked_issues_row[data-issue-key="JRACLOUD-98123"]')).toHaveCount(0);
+
+  await page.locator('._JX_history_toggle').click();
+  await expect(panel).toHaveCount(0);
+  await expect(page.locator('._JX_history_flyout')).toBeVisible();
+  await page.close();
+});
+
+test('keeps failed linked issues selected when a multi-link request partially fails @mock-only', async ({extensionApp, optionsPage, servers}) => {
+  const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
+  test.skip(target.mode !== 'mock', 'Linked issue mutation coverage currently uses the mock Jira server only.');
+  await servers.jira.setScenario('linked-issues-partial-add-fails');
+  await configureExtension(optionsPage, baseConfig(servers, target));
+
+  const {page} = await openPopup(extensionApp, servers, target);
+  const trigger = page.getByTestId('jira-popup-linked-issues-trigger');
+  await trigger.click();
+  const panel = page.getByTestId('jira-popup-linked-issues-panel');
+  await panel.getByTestId('jira-popup-linked-issues-search').fill('JRACLOUD-99001, API-204');
+  await panel.getByTestId('jira-popup-linked-issues-add').click();
+
+  await expect(trigger).toContainText('4');
+  await expect(panel.locator('._JX_linked_issues_row[data-issue-key="JRACLOUD-99001"]')).toBeVisible();
+  await expect(panel.locator('._JX_linked_issues_row[data-issue-key="API-204"]')).toHaveCount(0);
+  await expect(panel.locator('._JX_linked_issues_selected_chip')).toHaveText('API-204');
+  await expect(panel.locator('._JX_linked_issues_error')).toContainText('Could not link API-204');
+  await page.close();
+});
+
 test('groups history entries and nests referenced attachments inside expanded comments in mocked mode', async ({extensionApp, optionsPage, servers}) => {
   const target = requireJiraTestTarget(test, servers, {requireAuth: process.env.MOCK === 'false'});
   test.skip(target.mode !== 'mock', 'History flyout coverage currently uses the mock Jira server only.');
@@ -1229,7 +1302,7 @@ test('groups history entries and nests referenced attachments inside expanded co
 
   const {page} = await openPopup(extensionApp, servers, target);
   const activityStrip = page.locator('._JX_activity_strip');
-  await expect(activityStrip.locator('._JX_activity_item')).toHaveCount(1);
+  await expect(activityStrip.locator('._JX_activity_item')).toHaveCount(2);
   await expect(activityStrip.locator('._JX_watchers_trigger')).toHaveCount(1);
 
   const historyTrigger = page.locator('._JX_history_toggle');

@@ -15,6 +15,12 @@ const ATTACHMENT_FIXTURE_BY_ID = {
   '902': 'history-image-2.png',
   '903': 'standalone-graph.png',
 };
+const ISSUE_LINK_TYPES = [
+  {id: '10000', name: 'Blocks', outward: 'blocks', inward: 'is blocked by'},
+  {id: '10001', name: 'Cloners', outward: 'clones', inward: 'is cloned by'},
+  {id: '10002', name: 'Duplicate', outward: 'duplicates', inward: 'is duplicated by'},
+  {id: '10003', name: 'Relates', outward: 'relates to', inward: 'relates to'},
+];
 
 function guessImageContentType(fileName = '') {
   return /\.jpe?g$/i.test(fileName) ? 'image/jpeg' : 'image/png';
@@ -565,6 +571,23 @@ function createState(origin) {
           avatarUrls: {'48x48': `${origin}/assets/avatar-alex.png`},
         },
       ],
+      issueLinks: [
+        {
+          id: 'link-1',
+          type: ISSUE_LINK_TYPES[0],
+          outwardIssue: {key: 'JRACLOUD-98123'},
+        },
+        {
+          id: 'link-2',
+          type: ISSUE_LINK_TYPES[0],
+          inwardIssue: {key: 'PLATFORM-101'},
+        },
+        {
+          id: 'link-3',
+          type: ISSUE_LINK_TYPES[3],
+          outwardIssue: {key: 'JRACLOUD-97000'},
+        },
+      ],
       customFields: {
         customfield_12345: 'Customer impact: High',
         customfield_67890: {
@@ -612,6 +635,13 @@ function createState(origin) {
             name: 'To Do',
             iconUrl: `${origin}/assets/status-todo.png`,
           },
+          assignee: {
+            accountId: 'user-me',
+            name: 'me',
+            key: 'me',
+            displayName: 'Morgan Agent',
+            avatarUrls: {'48x48': `${origin}/assets/avatar-me.png`},
+          },
         },
       },
       {
@@ -648,6 +678,69 @@ function createState(origin) {
             name: 'To Do',
             iconUrl: `${origin}/assets/status-todo.png`,
           },
+        },
+      },
+      {
+        id: '10005',
+        key: 'JRACLOUD-99001',
+        fields: {
+          summary: 'Track API retry exhaustion in quick view',
+          project: {key: 'JRACLOUD', id: '10000'},
+          issuetype: {
+            id: '2',
+            name: 'Task',
+            iconUrl: `${origin}/assets/issuetype-task.png`,
+          },
+          status: {
+            id: '10000',
+            name: 'To Do',
+            iconUrl: `${origin}/assets/status-todo.png`,
+          },
+          assignee: {
+            accountId: 'user-alex',
+            name: 'alex',
+            key: 'alex',
+            displayName: 'Alex Reviewer',
+            avatarUrls: {'48x48': `${origin}/assets/avatar-alex.png`},
+          },
+        },
+      },
+      {
+        id: '20002',
+        key: 'API-204',
+        fields: {
+          summary: 'Add idempotency to the API link command',
+          project: {key: 'API', id: '20001'},
+          issuetype: {
+            id: '1',
+            name: 'Bug',
+            iconUrl: `${origin}/assets/issuetype-bug.png`,
+          },
+          status: {
+            id: '3',
+            name: 'In Progress',
+            iconUrl: `${origin}/assets/status-in-progress.png`,
+          },
+          assignee: null,
+        },
+      },
+      {
+        id: '30001',
+        key: 'OPS-110',
+        fields: {
+          summary: 'Capture API latency alerts for support',
+          project: {key: 'OPS', id: '30000'},
+          issuetype: {
+            id: '2',
+            name: 'Task',
+            iconUrl: `${origin}/assets/issuetype-task.png`,
+          },
+          status: {
+            id: '10000',
+            name: 'To Do',
+            iconUrl: `${origin}/assets/status-todo.png`,
+          },
+          assignee: null,
         },
       },
     ],
@@ -742,6 +835,7 @@ function createState(origin) {
       },
     ],
     uploadedAttachments: [],
+    issueLinkSequence: 4,
   };
 }
 
@@ -781,6 +875,7 @@ function buildIssueResponse(origin, state, options = {}) {
       watchCount: issue.watchers.length,
       isWatching: issue.watchers.some(user => user.accountId === state.currentUser.accountId),
     },
+    issuelinks: issue.issueLinks,
   };
   return {
     id: issue.id,
@@ -1011,6 +1106,76 @@ async function createMockJiraServer() {
 
     if (pathname === '/rest/api/2/project' && req.method === 'GET') {
       json(res, 200, [{id: '10000', key: 'JRACLOUD', name: 'Jira Cloud'}]);
+      return;
+    }
+
+    if (pathname === '/rest/api/2/issueLinkType' && req.method === 'GET') {
+      json(res, 200, {issueLinkTypes: ISSUE_LINK_TYPES});
+      return;
+    }
+
+    if ((pathname === '/rest/api/2/issue/picker' || pathname === '/rest/api/3/issue/picker') && req.method === 'GET') {
+      const query = String(url.searchParams.get('query') || '').trim().toLowerCase();
+      const issues = state.issueSearchCatalog
+        .filter(issue => {
+          const searchText = `${issue.key} ${issue.fields.summary}`.toLowerCase();
+          return query.length < 2 || searchText.includes(query);
+        })
+        .map(issue => ({
+          id: issue.id,
+          key: issue.key,
+          summary: issue.fields.summary,
+          label: `${issue.key} - ${issue.fields.summary}`,
+          fields: issue.fields,
+        }));
+      json(res, 200, {sections: [{id: 'issues', label: 'Issues', issues}]});
+      return;
+    }
+
+    if (pathname === '/rest/api/2/issueLink' && req.method === 'POST') {
+      if (state.scenario === 'readonly' || state.scenario === 'anonymous-readonly') {
+        json(res, 403, {errorMessages: ['Issue linking is not permitted']});
+        return;
+      }
+      const body = await parseJsonBody(req);
+      const type = ISSUE_LINK_TYPES.find(candidate => candidate.name === body?.type?.name);
+      const currentIsOutward = body?.outwardIssue?.key === state.issue.key;
+      const currentIsInward = body?.inwardIssue?.key === state.issue.key;
+      const targetKey = currentIsOutward ? body?.inwardIssue?.key : body?.outwardIssue?.key;
+      const targetIssue = state.issueSearchCatalog.find(issue => issue.key === targetKey);
+      if (!type || (!currentIsOutward && !currentIsInward) || !targetIssue) {
+        json(res, 400, {errorMessages: ['Invalid issue link']});
+        return;
+      }
+      if (scenarioIn('linked-issues-partial-add-fails') && targetKey === 'API-204') {
+        json(res, 500, {errorMessages: ['Could not create issue link']});
+        return;
+      }
+      const issueLink = {
+        id: `link-${state.issueLinkSequence++}`,
+        type,
+        ...(currentIsOutward
+          ? {outwardIssue: {key: targetIssue.key}}
+          : {inwardIssue: {key: targetIssue.key}}),
+      };
+      state.issue.issueLinks.push(issueLink);
+      json(res, 201, issueLink);
+      return;
+    }
+
+    if (/^\/rest\/api\/2\/issueLink\/[^/]+$/.test(pathname) && req.method === 'DELETE') {
+      if (state.scenario === 'readonly' || state.scenario === 'anonymous-readonly') {
+        json(res, 403, {errorMessages: ['Issue linking is not permitted']});
+        return;
+      }
+      const linkId = pathname.split('/').pop();
+      const originalLength = state.issue.issueLinks.length;
+      state.issue.issueLinks = state.issue.issueLinks.filter(link => String(link.id) !== String(linkId));
+      if (state.issue.issueLinks.length === originalLength) {
+        json(res, 404, {errorMessages: ['Issue link not found']});
+        return;
+      }
+      noContent(res);
       return;
     }
 

@@ -212,6 +212,98 @@
             </div>
             {{#hasRow1Meta}}
             <div class="_JX_activity_strip">
+                <div class="_JX_linked_issues_group">
+                    <button class="_JX_activity_item _JX_linked_issues_trigger{{#linkedIssuesTrigger.isOpen}} is-active{{/linkedIssuesTrigger.isOpen}}" data-testid="jira-popup-linked-issues-trigger" type="button" title="{{linkedIssuesTrigger.title}}" aria-label="{{linkedIssuesTrigger.title}}" aria-haspopup="dialog" aria-expanded="{{#linkedIssuesTrigger.isOpen}}true{{/linkedIssuesTrigger.isOpen}}{{^linkedIssuesTrigger.isOpen}}false{{/linkedIssuesTrigger.isOpen}}">
+                        <span class="_JX_linked_issues_trigger_icon" aria-hidden="true">
+                            <svg width="14" height="14" viewBox="0 0 24 24" focusable="false" role="presentation"><path d="M10.5 13.5l3-3M8.3 16.2l-1.1 1.1a3.2 3.2 0 0 1-4.5-4.5l3.1-3.1a3.2 3.2 0 0 1 4.5 0M15.7 7.8l1.1-1.1a3.2 3.2 0 1 1 4.5 4.5l-3.1 3.1a3.2 3.2 0 0 1-4.5 0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>
+                        </span>
+                        <strong>{{linkedIssuesTrigger.count}}</strong>
+                    </button>
+                    {{#linkedIssuesPanel.isOpen}}
+                    <div class="_JX_linked_issues_panel" data-testid="jira-popup-linked-issues-panel" role="dialog" aria-label="Linked issues">
+                        <div class="_JX_history_panel_header">
+                            <div class="_JX_linked_issues_title">Linked issues <span class="_JX_linked_issues_count">{{linkedIssuesPanel.count}}</span></div>
+                            <button class="_JX_linked_issues_close" type="button" aria-label="Close linked issues panel">
+                                <svg width="14" height="14" viewBox="0 0 24 24" focusable="false" role="presentation"><path fill="currentColor" d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.89a1 1 0 0 0 1.41-1.41L13.41 12l4.89-4.89a1 1 0 0 0 0-1.4z"></path></svg>
+                            </button>
+                        </div>
+                        {{#linkedIssuesPanel.isLoading}}<div class="_JX_linked_issues_loading">{{linkedIssuesPanel.loadingText}}</div>{{/linkedIssuesPanel.isLoading}}
+                        {{^linkedIssuesPanel.isLoading}}
+                        {{#linkedIssuesPanel.hasRelationshipOptions}}
+                        <div class="_JX_linked_issues_composer">
+                            <div class="_JX_edit_field_label">Add linked issues</div>
+                            <div class="_JX_linked_issues_composer_row">
+                                <select class="_JX_edit_input _JX_linked_issues_type_select" aria-label="Relationship">
+                                    {{#linkedIssuesPanel.relationshipOptions}}<option value="{{id}}" {{selectedAttr}}>{{label}}</option>{{/linkedIssuesPanel.relationshipOptions}}
+                                </select>
+                                <input class="_JX_edit_input _JX_linked_issues_search_input" data-testid="jira-popup-linked-issues-search" type="text" value="{{linkedIssuesPanel.searchValue}}" placeholder="Issue key(s) or summary" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="{{#linkedIssuesPanel.hasSearchResults}}true{{/linkedIssuesPanel.hasSearchResults}}{{^linkedIssuesPanel.hasSearchResults}}false{{/linkedIssuesPanel.hasSearchResults}}">
+                                <button class="_JX_edit_save _JX_linked_issues_add" data-testid="jira-popup-linked-issues-add" type="button" {{linkedIssuesPanel.addDisabledAttr}}>{{linkedIssuesPanel.addButtonText}}</button>
+                            </div>
+                            {{#linkedIssuesPanel.hasSelectedIssues}}
+                            <div class="_JX_edit_selected_values _JX_linked_issues_selected_values">
+                                {{#linkedIssuesPanel.selectedIssues}}
+                                <span class="_JX_edit_selected_chip _JX_linked_issues_selected_chip" title="{{title}}">
+                                    <span class="_JX_edit_selected_label">{{key}}</span>
+                                    <button class="_JX_edit_selected_remove _JX_linked_issues_token_remove" type="button" data-issue-key="{{key}}" title="Remove {{key}}" aria-label="Remove {{key}}" {{removeDisabledAttr}}><svg width="12" height="12" viewBox="0 0 24 24" focusable="false" role="presentation"><path fill="currentColor" d="M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.3l6.3 6.29 6.29-6.3z"></path></svg></button>
+                                </span>
+                                {{/linkedIssuesPanel.selectedIssues}}
+                            </div>
+                            {{/linkedIssuesPanel.hasSelectedIssues}}
+                            {{#linkedIssuesPanel.searchLoading}}<div class="_JX_edit_hint">Searching issues...</div>{{/linkedIssuesPanel.searchLoading}}
+                            {{#linkedIssuesPanel.hasSearchResults}}
+                            <div class="_JX_edit_dropdown _JX_linked_issues_search_results" role="listbox">
+                                {{#linkedIssuesPanel.searchResults}}
+                                <button class="_JX_edit_option _JX_linked_issues_search_result" type="button" role="option" data-issue-key="{{key}}">
+                                    {{#issueTypeIconUrl}}<img class="_JX_edit_option_icon" src="{{issueTypeIconUrl}}" alt="">{{/issueTypeIconUrl}}
+                                    <span class="_JX_edit_option_text">
+                                        <span class="_JX_edit_option_label">{{optionLabel}}</span>
+                                        <span class="_JX_edit_option_meta">{{statusText}}</span>
+                                    </span>
+                                </button>
+                                {{/linkedIssuesPanel.searchResults}}
+                            </div>
+                            {{/linkedIssuesPanel.hasSearchResults}}
+                            {{#linkedIssuesPanel.showSearchEmpty}}<div class="_JX_edit_empty">No matching issues.</div>{{/linkedIssuesPanel.showSearchEmpty}}
+                        </div>
+                        {{/linkedIssuesPanel.hasRelationshipOptions}}
+                        {{^linkedIssuesPanel.hasRelationshipOptions}}<div class="_JX_linked_issues_error">Issue linking is unavailable.</div>{{/linkedIssuesPanel.hasRelationshipOptions}}
+                        {{#linkedIssuesPanel.errorMessage}}<div class="_JX_linked_issues_error">{{linkedIssuesPanel.errorMessage}}</div>{{/linkedIssuesPanel.errorMessage}}
+                        {{#linkedIssuesPanel.feedbackMessage}}<div class="_JX_linked_issues_feedback">{{linkedIssuesPanel.feedbackMessage}}</div>{{/linkedIssuesPanel.feedbackMessage}}
+                        <div class="_JX_linked_issues_groups">
+                            {{#linkedIssuesPanel.groups}}
+                            <section class="_JX_linked_issues_section">
+                                <div class="_JX_linked_issues_section_header"><span>{{label}}</span><span class="_JX_linked_issues_section_line"></span><span>{{count}}</span></div>
+                                {{#rows}}
+                                <div class="_JX_linked_issues_row{{#isPendingRemove}} is-pending{{/isPendingRemove}}" data-link-id="{{id}}" data-issue-key="{{key}}">
+                                    {{#isConfirmingRemove}}
+                                    <div class="_JX_linked_issues_remove_confirmation">
+                                        <span>Remove link to <strong>{{key}}</strong>?</span>
+                                        <button class="_JX_comment_delete_cancel _JX_linked_issues_remove_cancel" type="button" data-link-id="{{id}}">Cancel</button>
+                                        <button class="_JX_comment_delete_confirm _JX_linked_issues_remove_confirm" type="button" data-link-id="{{id}}">Remove</button>
+                                    </div>
+                                    {{/isConfirmingRemove}}
+                                    {{^isConfirmingRemove}}
+                                    {{#issueTypeIconUrl}}<img class="_JX_related_table_type_icon _JX_linked_issues_type_icon" src="{{issueTypeIconUrl}}" alt="" title="{{issueTypeTitle}}">{{/issueTypeIconUrl}}
+                                    {{^issueTypeIconUrl}}<span class="_JX_related_table_type_placeholder _JX_linked_issues_type_icon" title="{{issueTypeTitle}}">--</span>{{/issueTypeIconUrl}}
+                                    <a class="_JX_linked_issues_key" href="{{issueUrl}}" target="_blank" rel="noopener noreferrer" title="{{issueLinkTitle}}">{{key}}</a>
+                                    <span class="_JX_linked_issues_summary" title="{{summary}}">{{summary}}</span>
+                                    <span class="_JX_linked_issues_assignee" title="{{assigneeTitle}}">
+                                        {{#assigneeAvatarUrl}}<img class="_JX_related_table_user_avatar" src="{{assigneeAvatarUrl}}" alt="">{{/assigneeAvatarUrl}}
+                                        {{^assigneeAvatarUrl}}<span class="_JX_related_table_user_avatar _JX_related_table_user_avatar_placeholder">{{assigneeInitials}}</span>{{/assigneeAvatarUrl}}
+                                    </span>
+                                    <span class="_JX_field_chip _JX_linked_issues_status" title="Status: {{statusText}}">{{statusText}}</span>
+                                    <button class="_JX_watchers_remove _JX_linked_issues_remove" type="button" data-link-id="{{id}}" aria-label="Remove link to {{key}}" title="Remove link to {{key}}" {{removeDisabledAttr}}>{{#isPendingRemove}}...{{/isPendingRemove}}{{^isPendingRemove}}x{{/isPendingRemove}}</button>
+                                    {{/isConfirmingRemove}}
+                                </div>
+                                {{/rows}}
+                            </section>
+                            {{/linkedIssuesPanel.groups}}
+                            {{^linkedIssuesPanel.hasGroups}}<div class="_JX_linked_issues_empty">{{linkedIssuesPanel.emptyText}}</div>{{/linkedIssuesPanel.hasGroups}}
+                        </div>
+                        {{/linkedIssuesPanel.isLoading}}
+                    </div>
+                    {{/linkedIssuesPanel.isOpen}}
+                </div>
                 {{#activityIndicators}}
                 <div class="_JX_history_group">
                     {{#clickable}}<button class="_JX_activity_item _JX_history_toggle{{#isHistory}}{{#historyOpen}} is-active{{/historyOpen}}{{/isHistory}}" type="button" title="{{title}}" aria-label="{{ariaLabel}}" aria-haspopup="dialog" aria-expanded="{{#historyOpen}}true{{/historyOpen}}{{^historyOpen}}false{{/historyOpen}}">{{{iconHtml}}}{{#hasCount}} <strong>{{count}}</strong>{{/hasCount}}</button>{{/clickable}}
