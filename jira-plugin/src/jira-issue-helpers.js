@@ -42,6 +42,7 @@ export function buildPopupIssueFieldList({sprintFieldIds = [], epicLinkFieldIds 
     'parent',
     'fixVersions',
     'watches',
+    'issuelinks',
     ...sprintFieldIds,
     ...epicLinkFieldIds,
     ...(customFields || []).map(field => field?.fieldId)

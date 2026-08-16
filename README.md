@@ -17,7 +17,8 @@ Open a Jira notification email in Gmail or Outlook, hover the issue key in the m
 ## Feature highlights
 
 - Action Jira email notifications directly from Gmail, Outlook, and other enabled inbox-style pages
-- Rich popup for issue metadata, description, attachments, comments, and linked pull requests
+- Rich popup for issue metadata, linked Jira issues, description, attachments, comments, and linked pull requests
+- Linked-issue management grouped by relationship, with key/summary search, multi-key entry, status and assignee context, and confirmed removal
 - PR visibility inside the card, including title, author, branch, and status
 - Inline editing for supported Jira fields and supported custom field types
 - Configurable layout with Jira custom fields placed directly into the popup rows
@@ -30,7 +31,7 @@ Open a Jira notification email in Gmail or Outlook, hover the issue key in the m
 - Turns Jira notification emails into actionable workflows instead of another tab-switching detour
 - Less tab switching during review and triage
 - Faster issue updates while staying in the current page
-- Better release confidence with attachments, history, and linked PRs in one place
+- Better release confidence with linked issues, attachments, history, and linked PRs in one place
 - More relevant popups because each team can control fields and custom field placement
 
 ## Quick start
@@ -68,6 +69,10 @@ The Options page lets you choose color mode, hover behavior, row fields, content
 - Use the [Issue tracker](https://github.com/dgebaei/Jira-QuickView/issues) to report bugs or request improvements.
 
 ## Gallery
+
+| Linked issue management | Multi-key linking |
+| --- | --- |
+| ![Linked issues grouped by relationship](docs/screenshots/user-guide/popup-linked-issues.png) | ![Direct multi-key linked issue entry](docs/screenshots/user-guide/popup-linked-issues-multi-select.png) |
 
 | Quick actions | Inline editing |
 | --- | --- |

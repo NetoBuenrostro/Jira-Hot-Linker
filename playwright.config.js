@@ -30,7 +30,7 @@ module.exports = {
   projects: [
     {
       name: 'mock-edge',
-      testMatch: /(?:^|\/)(?:action-click|error-states|partial-failures|user-field-editing)\.spec\.js$/,
+      testMatch: /(?:^|\/)(?:action-click|error-states|linked-issues-helpers|partial-failures|user-field-editing)\.spec\.js$/,
     },
     {
       name: 'mock-popup',

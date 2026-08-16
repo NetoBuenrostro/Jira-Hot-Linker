@@ -396,6 +396,7 @@ body ._JX {
     position: relative;
   }
 
+  &_linked_issues_group,
   &_history_group {
     position: relative;
   }
@@ -452,6 +453,7 @@ body ._JX {
   }
 
   &_history_flyout,
+  &_linked_issues_panel,
   &_watchers_panel {
     background: #fff;
     background-clip: padding-box;
@@ -492,6 +494,7 @@ body ._JX {
   }
 
   &_history_panel_header,
+  &_linked_issues_panel_header,
   &_watchers_panel_header {
     align-items: center;
     display: flex;
@@ -501,6 +504,7 @@ body ._JX {
 
   &_watchers_panel_title,
   &_watchers_section_label,
+  &_linked_issues_title,
   &_history_header {
     color: #44546f;
     font-size: 11px;
@@ -510,6 +514,7 @@ body ._JX {
   }
 
   &_history_close,
+  &_linked_issues_close,
   &_watchers_close {
     align-items: center;
     appearance: none;
@@ -759,13 +764,15 @@ body ._JX {
     font-weight: 700;
   }
 
-  &_history_toggle_icon {
+  &_history_toggle_icon,
+  &_linked_issues_trigger_icon {
     align-items: center;
     display: inline-flex;
     justify-content: center;
   }
 
-  &_history_toggle {
+  &_history_toggle,
+  &_linked_issues_trigger {
     appearance: none;
     background: transparent;
     border: 1px solid transparent;
@@ -807,6 +814,215 @@ body ._JX {
     max-width: min(480px, calc(100vw - 48px));
     padding: 10px;
     width: max-content;
+  }
+
+  &_linked_issues_panel {
+    max-height: min(520px, calc(100vh - 96px));
+    max-width: min(500px, calc(100vw - 48px));
+    min-width: min(460px, calc(100vw - 48px));
+    padding: 8px;
+    width: min(480px, calc(100vw - 48px));
+  }
+
+  &_linked_issues_title {
+    align-items: center;
+    display: inline-flex;
+    gap: 6px;
+  }
+
+  &_linked_issues_count {
+    align-items: center;
+    background: #edf1f5;
+    border-radius: 999px;
+    color: #44546f;
+    display: inline-flex;
+    font-size: 10px;
+    justify-content: center;
+    min-width: 20px;
+    padding: 1px 6px;
+  }
+
+  &_linked_issues_loading,
+  &_linked_issues_empty,
+  &_linked_issues_error,
+  &_linked_issues_feedback {
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 7px 8px;
+  }
+
+  &_linked_issues_loading,
+  &_linked_issues_empty {
+    color: #6b778c;
+    text-align: center;
+  }
+
+  &_linked_issues_error {
+    color: #ae2e24;
+  }
+
+  &_linked_issues_feedback {
+    color: #216e4e;
+  }
+
+  &_linked_issues_composer {
+    background: #f7f8f9;
+    border: 1px solid #e4e8ed;
+    border-radius: 8px;
+    padding: 7px;
+  }
+
+  &_linked_issues_composer_row {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: minmax(112px, 0.7fr) minmax(150px, 1.3fr) auto;
+  }
+
+  &_linked_issues_type_select {
+    min-height: 32px;
+    padding-bottom: 6px;
+    padding-top: 6px;
+  }
+
+  &_linked_issues_selected_values {
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  &_linked_issues_selected_chip {
+    font-size: 11px;
+    padding-bottom: 2px;
+    padding-top: 2px;
+  }
+
+  &_linked_issues_search_results {
+    max-height: 174px;
+  }
+
+  &_linked_issues_search_result {
+    padding-bottom: 6px;
+    padding-top: 6px;
+  }
+
+  &_linked_issues_groups {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  &_linked_issues_section {
+    padding: 2px 0;
+  }
+
+  &_linked_issues_section_header {
+    align-items: center;
+    color: #44546f;
+    display: flex;
+    font-size: 10px;
+    font-weight: 800;
+    gap: 6px;
+    letter-spacing: 0.03em;
+    padding: 4px 4px 2px;
+    text-transform: uppercase;
+  }
+
+  &_linked_issues_section_line {
+    background: #e4e8ed;
+    flex: 1 1 auto;
+    height: 1px;
+  }
+
+  &_linked_issues_row {
+    align-items: center;
+    border-radius: 7px;
+    display: grid;
+    gap: 5px;
+    grid-template-columns: 18px 74px minmax(0, 1fr) 20px auto 24px;
+    min-height: 36px;
+    padding: 2px 4px;
+
+    &:hover,
+    &:focus-within {
+      background: #f5f8fc;
+    }
+
+    &.is-pending {
+      opacity: 0.65;
+    }
+  }
+
+  &_linked_issues_type_icon {
+    height: 16px;
+    width: 16px;
+  }
+
+  &_linked_issues_key {
+    font-size: 11px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &_linked_issues_summary {
+    color: #253858;
+    font-size: 11px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &_linked_issues_assignee {
+    align-items: center;
+    display: inline-flex;
+  }
+
+  &_linked_issues_status {
+    font-size: 9px;
+    line-height: 1;
+    max-width: 90px;
+    overflow: hidden;
+    padding: 3px 6px;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  &_linked_issues_remove {
+    font-size: 16px;
+  }
+
+  &_linked_issues_row:hover ._JX_linked_issues_remove,
+  &_linked_issues_row:focus-within ._JX_linked_issues_remove,
+  &_linked_issues_row.is-pending ._JX_linked_issues_remove {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  &_linked_issues_remove_confirmation {
+    align-items: center;
+    background: #fff7f5;
+    border: 1px solid #ffd2cc;
+    border-radius: 6px;
+    color: #5d1f17;
+    display: flex;
+    font-size: 11px;
+    gap: 6px;
+    grid-column: 1 / -1;
+    min-height: 32px;
+    padding: 3px 5px 3px 8px;
+  }
+
+  &_linked_issues_remove_confirmation > span {
+    flex: 1 1 auto;
+  }
+
+  @media (hover: none) {
+    &_linked_issues_remove {
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
 
   &_history_header {

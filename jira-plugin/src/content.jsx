@@ -11,6 +11,15 @@ import {createContentFieldCapabilityHelpers} from 'src/content-field-capability-
 import {createContentHistoryHelpers} from 'src/content-history-helpers';
 import {createContentIssueDataHelpers} from 'src/content-issue-data-helpers';
 import {createContentIssueLinkageHelpers} from 'src/content-issue-linkage-helpers';
+import {
+  buildIssueLinkCreatePayload,
+  buildLinkedIssuesPanelView,
+  buildRelationshipOptions,
+  createContentLinkedIssuesHelpers,
+  createEmptyLinkedIssuesState,
+  getLinkedIssueKeys,
+  parseLinkedIssueKeys,
+} from 'src/content-linked-issues-helpers';
 import {createContentDisplayHelpers} from 'src/content-display-helpers';
 import {createContentPeopleHelpers} from 'src/content-people-helpers';
 import {createContentPopupStateHelpers} from 'src/content-popup-state-helpers';
@@ -515,6 +524,7 @@ async function mainAsyncLocal() {
     removeFeedback: null,
     focusSearch: false,
   });
+  const emptyLinkedIssuesState = () => createEmptyLinkedIssuesState();
   const projectSprintOptionsPromises = new Map();
   const editMetaCache = new Map();
   const transitionOptionsCache = new Map();
@@ -627,10 +637,22 @@ async function mainAsyncLocal() {
     issueSearchCache,
     issueSearchRecentCache,
   });
+  const {
+    getIssueLinkTypes,
+    getLinkedIssueDetails,
+    searchIssueLinkCandidates,
+  } = createContentLinkedIssuesHelpers({
+    encodeJqlValue,
+    get,
+    getCachedValue,
+    instanceUrl: INSTANCE_URL,
+    issueSearchCache,
+  });
   let labelSuggestionSupportPromise = null;
   let editSearchRequestCounter = 0;
   let labelSearchTimeoutId = null;
   let watchersFeedbackTimeoutId = null;
+  let linkedIssuesSearchTimeoutId = null;
   let actionNoticeTimeoutId = null;
   let descriptionStatusTimeoutId = null;
   let popupState = null;
@@ -4900,6 +4922,11 @@ async function mainAsyncLocal() {
     buildFilterChip,
     buildLabelsChip,
     buildLinkHoverTitle,
+    buildLinkedIssuesPanelView: (state, issueData) => buildLinkedIssuesPanelView(state, issueData, {
+      buildLinkHoverTitle,
+      buildUserView,
+      instanceUrl: INSTANCE_URL,
+    }),
     buildQuickActionViewData,
     buildTimeTrackingSectionPresentation,
     buildUserView,
@@ -5074,6 +5101,13 @@ async function mainAsyncLocal() {
           const selectionStart = Math.min(maxIndex, Number.isInteger(state.descriptionEditState.selectionStart) ? state.descriptionEditState.selectionStart : maxIndex);
           const selectionEnd = Math.min(maxIndex, Number.isInteger(state.descriptionEditState.selectionEnd) ? state.descriptionEditState.selectionEnd : maxIndex);
           input.setSelectionRange(selectionStart, selectionEnd);
+        }
+      } else if (state.linkedIssuesState?.open && state.linkedIssuesState.focusSearch) {
+        const input = container.find('._JX_linked_issues_search_input')[0];
+        if (input) {
+          input.focus();
+          const maxIndex = input.value.length;
+          input.setSelectionRange(maxIndex, maxIndex);
         }
       } else if (state.watchersState?.open && state.watchersState.focusSearch) {
         const input = container.find('._JX_watchers_search_input')[0];
@@ -5334,6 +5368,361 @@ async function mainAsyncLocal() {
         })
       }));
       scheduleWatchersFeedbackClear();
+    }
+  }
+
+  function buildNextLinkedIssuesState(currentState = emptyLinkedIssuesState(), changes = {}) {
+    return {
+      ...emptyLinkedIssuesState(),
+      ...currentState,
+      ...changes,
+    };
+  }
+
+  async function openLinkedIssuesPanel() {
+    if (!popupState?.issueData?.key) {
+      return;
+    }
+    const issueKey = popupState.issueData.key;
+    await renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      historyOpen: false,
+      watchersState: buildNextWatchersState(currentState.watchersState, {open: false, focusSearch: false}),
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        open: true,
+        loading: true,
+        errorMessage: '',
+        feedbackMessage: '',
+        focusSearch: true,
+      }),
+    }));
+
+    const [linkTypesResult, detailsResult] = await Promise.allSettled([
+      getIssueLinkTypes(),
+      getLinkedIssueDetails(popupState.issueData),
+    ]);
+    if (!popupState?.linkedIssuesState?.open || popupState.issueData?.key !== issueKey) {
+      return;
+    }
+    const linkTypes = linkTypesResult.status === 'fulfilled' ? linkTypesResult.value : [];
+    const relationshipOptions = buildRelationshipOptions(linkTypes);
+    await renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        loading: false,
+        linkTypes,
+        relationshipId: currentState.linkedIssuesState?.relationshipId || relationshipOptions[0]?.id || '',
+        issueDetailsByKey: detailsResult.status === 'fulfilled' ? detailsResult.value : {},
+        errorMessage: linkTypesResult.status === 'rejected' ? buildEditFieldError(linkTypesResult.reason) : '',
+        focusSearch: true,
+      }),
+    }));
+  }
+
+  function closeLinkedIssuesPanel() {
+    if (!popupState?.linkedIssuesState?.open) {
+      return;
+    }
+    if (linkedIssuesSearchTimeoutId) {
+      clearTimeout(linkedIssuesSearchTimeoutId);
+      linkedIssuesSearchTimeoutId = null;
+    }
+    renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        open: false,
+        loading: false,
+        errorMessage: '',
+        feedbackMessage: '',
+        searchValue: '',
+        searchLoading: false,
+        searchRequestId: (currentState.linkedIssuesState?.searchRequestId || 0) + 1,
+        searchResults: [],
+        selectedIssues: [],
+        pendingAddKeys: [],
+        pendingRemoveIds: [],
+        confirmingRemoveId: '',
+        focusSearch: false,
+      }),
+    })).catch(() => {});
+  }
+
+  async function runLinkedIssuesSearch(query, requestId) {
+    try {
+      const excludedKeys = [
+        ...getLinkedIssueKeys(popupState?.issueData),
+        ...(popupState?.linkedIssuesState?.selectedIssues || []).map(issue => issue.key),
+      ];
+      const results = await searchIssueLinkCandidates(query, popupState.issueData, excludedKeys);
+      if (!popupState?.linkedIssuesState?.open || popupState.linkedIssuesState.searchRequestId !== requestId) {
+        return;
+      }
+      await renderUpdatedPopupState(currentState => ({
+        ...currentState,
+        linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+          searchLoading: false,
+          searchResults: results,
+          errorMessage: '',
+          focusSearch: true,
+        }),
+      }));
+    } catch (error) {
+      if (!popupState?.linkedIssuesState?.open || popupState.linkedIssuesState.searchRequestId !== requestId) {
+        return;
+      }
+      await renderUpdatedPopupState(currentState => ({
+        ...currentState,
+        linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+          searchLoading: false,
+          searchResults: [],
+          errorMessage: buildEditFieldError(error),
+          focusSearch: true,
+        }),
+      }));
+    }
+  }
+
+  function updateLinkedIssuesSearch(nextValue) {
+    if (!popupState?.linkedIssuesState?.open) {
+      return;
+    }
+    if (linkedIssuesSearchTimeoutId) {
+      clearTimeout(linkedIssuesSearchTimeoutId);
+      linkedIssuesSearchTimeoutId = null;
+    }
+    const searchValue = String(nextValue || '');
+    const shouldSearch = searchValue.trim().length >= 2;
+    const searchRequestId = popupState.linkedIssuesState.searchRequestId + 1;
+    renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        searchValue,
+        searchLoading: shouldSearch,
+        searchRequestId,
+        searchResults: [],
+        errorMessage: '',
+        feedbackMessage: '',
+        focusSearch: true,
+      }),
+    })).then(() => {
+      if (!shouldSearch) {
+        return;
+      }
+      linkedIssuesSearchTimeoutId = setTimeout(() => {
+        linkedIssuesSearchTimeoutId = null;
+        runLinkedIssuesSearch(searchValue, searchRequestId).catch(() => {});
+      }, 180);
+    }).catch(() => {});
+  }
+
+  function selectLinkedIssueCandidate(issueKey) {
+    const linkedState = popupState?.linkedIssuesState;
+    if (!linkedState?.open) {
+      return;
+    }
+    const issue = (linkedState.searchResults || []).find(candidate => candidate.key === issueKey);
+    if (!issue || (linkedState.selectedIssues || []).some(candidate => candidate.key === issue.key)) {
+      return;
+    }
+    renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        selectedIssues: [...(currentState.linkedIssuesState?.selectedIssues || []), issue],
+        searchValue: '',
+        searchLoading: false,
+        searchResults: [],
+        errorMessage: '',
+        focusSearch: true,
+      }),
+    })).catch(() => {});
+  }
+
+  function selectLinkedIssueKeys(issueKeys) {
+    const linkedState = popupState?.linkedIssuesState;
+    if (!linkedState?.open) {
+      return false;
+    }
+    const excludedKeys = new Set([
+      String(popupState.issueData?.key || '').toUpperCase(),
+      ...getLinkedIssueKeys(popupState.issueData),
+      ...(linkedState.selectedIssues || []).map(issue => issue.key),
+    ]);
+    const nextIssues = (issueKeys || [])
+      .filter(issueKey => !excludedKeys.has(issueKey))
+      .map(issueKey => ({key: issueKey, summary: issueKey}));
+    if (!nextIssues.length) {
+      return false;
+    }
+    if (linkedIssuesSearchTimeoutId) {
+      clearTimeout(linkedIssuesSearchTimeoutId);
+      linkedIssuesSearchTimeoutId = null;
+    }
+    renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        selectedIssues: [...(currentState.linkedIssuesState?.selectedIssues || []), ...nextIssues],
+        searchValue: '',
+        searchLoading: false,
+        searchRequestId: (currentState.linkedIssuesState?.searchRequestId || 0) + 1,
+        searchResults: [],
+        errorMessage: '',
+        feedbackMessage: '',
+        focusSearch: true,
+      }),
+    })).catch(() => {});
+    return true;
+  }
+
+  function commitLinkedIssueInput(value, force = false) {
+    const issueKeys = parseLinkedIssueKeys(value);
+    const hasKeyDelimiter = /[,;\n]/.test(String(value || ''));
+    if (!issueKeys.length || (!force && issueKeys.length < 2 && !hasKeyDelimiter)) {
+      return false;
+    }
+    return selectLinkedIssueKeys(issueKeys);
+  }
+
+  function removeLinkedIssueToken(issueKey) {
+    if (!popupState?.linkedIssuesState?.open) {
+      return;
+    }
+    renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        selectedIssues: (currentState.linkedIssuesState?.selectedIssues || []).filter(issue => issue.key !== issueKey),
+        focusSearch: true,
+      }),
+    })).catch(() => {});
+  }
+
+  async function refreshLinkedIssuesAfterMutation(stateChanges = {}) {
+    const issueKey = popupState?.issueData?.key;
+    if (!issueKey) {
+      return;
+    }
+    await refreshPopupIssueState('');
+    if (!popupState?.issueData || popupState.issueData.key !== issueKey) {
+      return;
+    }
+    const issueDetailsByKey = await getLinkedIssueDetails(popupState.issueData).catch(() => ({}));
+    await renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        open: true,
+        loading: false,
+        issueDetailsByKey,
+        pendingAddKeys: [],
+        pendingRemoveIds: [],
+        confirmingRemoveId: '',
+        focusSearch: false,
+        ...stateChanges,
+      }),
+    }));
+  }
+
+  async function addSelectedLinkedIssues() {
+    const linkedState = popupState?.linkedIssuesState;
+    const issueKey = popupState?.issueData?.key;
+    if (!issueKey || !linkedState?.open || !(linkedState.selectedIssues || []).length || linkedState.pendingAddKeys?.length) {
+      return;
+    }
+    const relationship = buildRelationshipOptions(linkedState.linkTypes)
+      .find(option => option.id === linkedState.relationshipId);
+    if (!relationship) {
+      return;
+    }
+    const selectedIssues = linkedState.selectedIssues.slice();
+    const pendingAddKeys = selectedIssues.map(issue => issue.key);
+    await renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        pendingAddKeys,
+        errorMessage: '',
+        feedbackMessage: '',
+        focusSearch: false,
+      }),
+    }));
+
+    const settled = await Promise.allSettled(selectedIssues.map(issue => {
+      const payload = buildIssueLinkCreatePayload(issueKey, relationship, issue.key);
+      return requestJson('POST', `${INSTANCE_URL}rest/api/2/issueLink`, payload);
+    }));
+    const succeeded = selectedIssues.filter((issue, index) => settled[index].status === 'fulfilled');
+    const failed = selectedIssues.filter((issue, index) => settled[index].status === 'rejected');
+    const firstFailure = settled.find(result => result.status === 'rejected');
+    const feedbackMessage = succeeded.length
+      ? `${succeeded.length} linked issue${succeeded.length === 1 ? '' : 's'} added.`
+      : '';
+    const errorMessage = failed.length
+      ? `Could not link ${failed.map(issue => issue.key).join(', ')}. ${buildEditFieldError(firstFailure.reason)}`
+      : '';
+    if (succeeded.length) {
+      await refreshLinkedIssuesAfterMutation({
+        selectedIssues: failed,
+        errorMessage,
+        feedbackMessage,
+      });
+      return;
+    }
+    await renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        pendingAddKeys: [],
+        errorMessage,
+        feedbackMessage: '',
+        focusSearch: true,
+      }),
+    }));
+  }
+
+  function setLinkedIssueRemoveConfirmation(linkId) {
+    if (!popupState?.linkedIssuesState?.open) {
+      return;
+    }
+    renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        confirmingRemoveId: linkId,
+        errorMessage: '',
+        feedbackMessage: '',
+        focusSearch: false,
+      }),
+    })).catch(() => {});
+  }
+
+  async function confirmLinkedIssueRemoval(linkId) {
+    const linkedState = popupState?.linkedIssuesState;
+    if (!linkedState?.open || linkedState.pendingRemoveIds?.includes(linkId)) {
+      return;
+    }
+    const link = (popupState.issueData?.fields?.issuelinks || []).find(candidate => String(candidate?.id || '') === linkId);
+    const linkedIssueKey = String((link?.outwardIssue || link?.inwardIssue)?.key || 'linked issue');
+    await renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        pendingRemoveIds: [...new Set([...(currentState.linkedIssuesState?.pendingRemoveIds || []), linkId])],
+        confirmingRemoveId: '',
+        errorMessage: '',
+        feedbackMessage: '',
+        focusSearch: false,
+      }),
+    }));
+    try {
+      await requestJson('DELETE', `${INSTANCE_URL}rest/api/2/issueLink/${encodeURIComponent(linkId)}`);
+      await refreshLinkedIssuesAfterMutation({
+        feedbackMessage: `Link to ${linkedIssueKey} removed.`,
+        errorMessage: '',
+      });
+    } catch (error) {
+      await renderUpdatedPopupState(currentState => ({
+        ...currentState,
+        linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+          pendingRemoveIds: (currentState.linkedIssuesState?.pendingRemoveIds || []).filter(id => id !== linkId),
+          errorMessage: buildEditFieldError(error),
+          feedbackMessage: '',
+          focusSearch: false,
+        }),
+      }));
     }
   }
   // ── Field Editing ─────────────────────────────────────────
@@ -5900,7 +6289,7 @@ async function mainAsyncLocal() {
   }
   new draggable({
     handle: '._JX_title, ._JX_status',
-    cancel: 'a, button, input, textarea, img, ._JX_description, ._JX_comments, ._JX_comment_body, ._JX_description_text, ._JX_related_table, ._JX_history_flyout, ._JX_watchers_panel'
+    cancel: 'a, button, input, textarea, img, ._JX_description, ._JX_comments, ._JX_comment_body, ._JX_description_text, ._JX_related_table, ._JX_history_flyout, ._JX_watchers_panel, ._JX_linked_issues_panel'
   }, container);
   
   // ── Clipboard & Copy ──────────────────────────────────────
@@ -6026,6 +6415,15 @@ async function mainAsyncLocal() {
         historyOpen: false
       };
     }
+    if (popupState?.linkedIssuesState?.open) {
+      popupState = {
+        ...popupState,
+        linkedIssuesState: buildNextLinkedIssuesState(popupState.linkedIssuesState, {
+          open: false,
+          focusSearch: false,
+        }),
+      };
+    }
     if (popupState?.watchersState?.open) {
       closeWatchersPanel();
       return;
@@ -6046,6 +6444,9 @@ async function mainAsyncLocal() {
   });
 
   $(document.body).on('click', '._JX_watchers_remove', function (e) {
+    if ($(e.currentTarget).closest('._JX_linked_issues_panel').length) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     removeWatcherFromPanel(e.currentTarget.getAttribute('data-watcher-id') || '').catch(() => {});
@@ -6054,6 +6455,99 @@ async function mainAsyncLocal() {
   $(document.body).on('input', '._JX_watchers_search_input', function (e) {
     e.stopPropagation();
     updateWatchersSearch(e.currentTarget.value);
+  });
+
+  $(document.body).on('click', '._JX_linked_issues_trigger', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (popupState?.linkedIssuesState?.open) {
+      closeLinkedIssuesPanel();
+      return;
+    }
+    openLinkedIssuesPanel().catch(() => {});
+  });
+
+  $(document.body).on('click', '._JX_linked_issues_close', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeLinkedIssuesPanel();
+  });
+
+  $(document.body).on('change', '._JX_linked_issues_type_select', function (e) {
+    e.stopPropagation();
+    renderUpdatedPopupState(currentState => ({
+      ...currentState,
+      linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
+        relationshipId: e.currentTarget.value,
+        feedbackMessage: '',
+        errorMessage: '',
+        focusSearch: true,
+      }),
+    })).catch(() => {});
+  });
+
+  $(document.body).on('input', '._JX_linked_issues_search_input', function (e) {
+    e.stopImmediatePropagation();
+    if (commitLinkedIssueInput(e.currentTarget.value)) {
+      return;
+    }
+    updateLinkedIssuesSearch(e.currentTarget.value);
+  });
+
+  $(document.body).on('keydown', '._JX_linked_issues_search_input', function (e) {
+    e.stopImmediatePropagation();
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeLinkedIssuesPanel();
+      return;
+    }
+    if (e.key === 'Enter' && popupState?.linkedIssuesState?.searchResults?.length) {
+      e.preventDefault();
+      if (commitLinkedIssueInput(e.currentTarget.value, true)) {
+        return;
+      }
+      selectLinkedIssueCandidate(popupState.linkedIssuesState.searchResults[0].key);
+      return;
+    }
+    if (e.key === 'Enter' && commitLinkedIssueInput(e.currentTarget.value, true)) {
+      e.preventDefault();
+    }
+  });
+
+  $(document.body).on('click', '._JX_linked_issues_search_result', function (e) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    selectLinkedIssueCandidate(e.currentTarget.getAttribute('data-issue-key') || '');
+  });
+
+  $(document.body).on('click', '._JX_linked_issues_token_remove', function (e) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    removeLinkedIssueToken(e.currentTarget.getAttribute('data-issue-key') || '');
+  });
+
+  $(document.body).on('click', '._JX_linked_issues_add', function (e) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    addSelectedLinkedIssues().catch(() => {});
+  });
+
+  $(document.body).on('click', '._JX_linked_issues_remove', function (e) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    setLinkedIssueRemoveConfirmation(e.currentTarget.getAttribute('data-link-id') || '');
+  });
+
+  $(document.body).on('click', '._JX_linked_issues_remove_cancel', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setLinkedIssueRemoveConfirmation('');
+  });
+
+  $(document.body).on('click', '._JX_linked_issues_remove_confirm', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    confirmLinkedIssueRemoval(e.currentTarget.getAttribute('data-link-id') || '').catch(() => {});
   });
 
   $(document.body).on('click', '._JX_action_item', function (e) {
@@ -6081,10 +6575,20 @@ async function mainAsyncLocal() {
       if (!popupState?.watchersState?.open) {
         return;
       }
-      if ($(e.target).closest('._JX_watchers_group').length) {
+      if ($(e.target).closest('._JX_watchers_group, ._JX_history_toggle, ._JX_linked_issues_group').length) {
         return;
       }
       closeWatchersPanel();
+  });
+
+  $(document.body).on('mousedown', function (e) {
+    if (!popupState?.linkedIssuesState?.open) {
+      return;
+    }
+    if ($(e.target).closest('._JX_linked_issues_group, ._JX_history_toggle, ._JX_watchers_group').length) {
+      return;
+    }
+    closeLinkedIssuesPanel();
   });
 
   $(document.body).on('click', '._JX_history_toggle', function (e) {
@@ -6095,6 +6599,15 @@ async function mainAsyncLocal() {
     }
     if (popupState.watchersState?.open) {
       closeWatchersPanel();
+    }
+    if (popupState.linkedIssuesState?.open) {
+      popupState = {
+        ...popupState,
+        linkedIssuesState: buildNextLinkedIssuesState(popupState.linkedIssuesState, {
+          open: false,
+          focusSearch: false,
+        }),
+      };
     }
     const nextOpen = !popupState.historyOpen;
     popupState = {
@@ -6171,12 +6684,18 @@ async function mainAsyncLocal() {
   });
 
   $(document.body).on('click', '._JX_edit_cancel, ._JX_edit_discard', function (e) {
+    if ($(e.currentTarget).closest('._JX_linked_issues_panel').length) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     cancelFieldEdit();
   });
 
   $(document.body).on('click', '._JX_edit_save', function (e) {
+    if ($(e.currentTarget).closest('._JX_linked_issues_panel').length) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     const fieldKey = e.currentTarget.getAttribute('data-field-key') || '';
@@ -6184,12 +6703,18 @@ async function mainAsyncLocal() {
   });
 
   $(document.body).on('click', '._JX_edit_option', function (e) {
+    if ($(e.currentTarget).closest('._JX_linked_issues_panel').length) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     selectFieldEditOption(e.currentTarget.getAttribute('data-option-id'));
   });
 
   $(document.body).on('click', '._JX_edit_selected_remove', function (e) {
+    if ($(e.currentTarget).closest('._JX_linked_issues_panel').length) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     if (popupState?.editState?.saving) {
@@ -6199,11 +6724,17 @@ async function mainAsyncLocal() {
   });
 
   $(document.body).on('input', '._JX_edit_input', function (e) {
+    if ($(e.currentTarget).closest('._JX_linked_issues_panel').length) {
+      return;
+    }
     e.stopPropagation();
     updateFieldEditInput(e.currentTarget.value, e.currentTarget.selectionStart, e.currentTarget.selectionEnd);
   });
 
   $(document.body).on('keydown', '._JX_edit_input', function (e) {
+    if ($(e.currentTarget).closest('._JX_linked_issues_panel').length) {
+      return;
+    }
     e.stopPropagation();
     const fieldKey = e.currentTarget.getAttribute('data-field-key') || '';
     const editState = popupState?.editState;
@@ -7076,6 +7607,7 @@ async function mainAsyncLocal() {
         ...buildPopupInteractionReset(),
         descriptionEditState: createDescriptionEditState(issueData),
         watchersState: emptyWatchersState(),
+        linkedIssuesState: emptyLinkedIssuesState(),
         timeTrackingEditState: createTimeTrackingEditState(issueData),
       });
     })(cancelToken).catch((error) => {

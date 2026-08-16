@@ -7,6 +7,7 @@ export function createContentDisplayHelpers(options) {
   const buildFilterChip = options?.buildFilterChip;
   const buildLabelsChip = options?.buildLabelsChip;
   const buildLinkHoverTitle = options?.buildLinkHoverTitle;
+  const buildLinkedIssuesPanelView = options?.buildLinkedIssuesPanelView;
   const buildQuickActionViewData = options?.buildQuickActionViewData;
   const buildTimeTrackingSectionPresentation = options?.buildTimeTrackingSectionPresentation;
   const buildUserView = options?.buildUserView;
@@ -593,6 +594,9 @@ export function createContentDisplayHelpers(options) {
     const watches = issueData.fields.watches || {};
     const watcherCount = Number.isFinite(Number(watches.watchCount)) ? Number(watches.watchCount) : 0;
     const watchersPanel = buildWatchersPanelView(state);
+    const linkedIssuesPanel = typeof buildLinkedIssuesPanelView === 'function'
+      ? buildLinkedIssuesPanelView(state, issueData)
+      : {isOpen: false, count: 0, groups: []};
     const timeTrackingSection = showTimeTracking ? buildTimeTrackingSectionPresentation(issueData, state.timeTrackingEditState, timeTrackingCapability) : null;
     const rawDescription = typeof issueData?.fields?.description === 'string' ? issueData.fields.description : '';
     const descriptionState = state.descriptionEditState || null;
@@ -707,6 +711,12 @@ export function createContentDisplayHelpers(options) {
         hasCount: true,
       },
       watchersPanel,
+      linkedIssuesTrigger: {
+        count: linkedIssuesPanel.count,
+        title: linkedIssuesPanel.count === 1 ? '1 linked issue' : `${linkedIssuesPanel.count} linked issues`,
+        isOpen: linkedIssuesPanel.isOpen,
+      },
+      linkedIssuesPanel,
       commentUrl: issueUrl,
       hasFieldSummary: row1Chips.length > 0 || row2Chips.length > 0 || row3Chips.length > 0,
       activityIndicators: [],
@@ -742,7 +752,7 @@ export function createContentDisplayHelpers(options) {
         .sort((left, right) => comparePullRequestRows(left, right, normalizedPullRequestsSort.column, normalizedPullRequestsSort.direction));
     }
     displayData.activityIndicators = buildActivityIndicators();
-    displayData.hasRow1Meta = !!displayData.watchersTrigger || displayData.activityIndicators.length > 0;
+    displayData.hasRow1Meta = !!displayData.watchersTrigger || !!displayData.linkedIssuesTrigger || displayData.activityIndicators.length > 0;
     displayData.hasPrimaryStatusRow = row1Chips.length > 0 || displayData.hasRow1Meta;
     displayData.historyOpen = !!historyOpen;
     displayData.changelogLoading = !!changelogLoading;
