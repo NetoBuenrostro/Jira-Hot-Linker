@@ -64,10 +64,11 @@ The screenshots in this guide are examples. Your popup can look different depend
       <li><a href="#52-header-reporter-assignee-summary-and-actions">5.2 Header: Reporter, Assignee, Summary, and Actions</a></li>
       <li><a href="#53-quick-actions-menu">5.3 Quick Actions Menu</a></li>
       <li>
-        <a href="#54-row-1-issue-type-status-priority-history-and-watchers">5.4 Row 1: Issue Type, Status, Priority, History, and Watchers</a>
+        <a href="#54-row-1-issue-type-status-priority-linked-issues-history-and-watchers">5.4 Row 1: Issue Type, Status, Priority, Linked Issues, History, and Watchers</a>
         <ul>
-          <li><a href="#541-history-panel">5.4.1 History Panel</a></li>
-          <li><a href="#542-watchers-panel">5.4.2 Watchers Panel</a></li>
+          <li><a href="#541-linked-issues-panel">5.4.1 Linked Issues Panel</a></li>
+          <li><a href="#542-history-panel">5.4.2 History Panel</a></li>
+          <li><a href="#543-watchers-panel">5.4.3 Watchers Panel</a></li>
         </ul>
       </li>
       <li><a href="#55-row-2-epic-parent-sprint-affects-version-and-fix-version">5.5 Row 2: Epic, Parent, Sprint, Affects Version, and Fix Version</a></li>
@@ -117,7 +118,7 @@ With the extension, you can:
 
 - Open a Jira issue preview by hovering an issue key such as `ABC-123`.
 - Copy issue links directly from issue details, search results, boards, and backlogs inside Jira.
-- See the issue summary, reporter, assignee, status, priority, versions, sprint, labels, description, comments, attachments, history, and linked pull requests.
+- See the issue summary, reporter, assignee, status, priority, versions, sprint, labels, linked Jira issues, description, comments, attachments, history, and linked pull requests.
 - Update supported fields directly from the popup when Jira allows it.
 - Add comments, mention teammates, react to comments, edit your own comments, and inspect attachment evidence.
 - Customize which fields and content blocks appear in the popup.
@@ -366,7 +367,7 @@ The three popup rows are for compact issue facts. Use them to decide what a user
 
 Suggested organization:
 
-- Row 1 is for urgent triage data, such as Issue Type, Status, Priority, History, and Watchers.
+- Row 1 is for urgent triage data, such as Issue Type, Status, Priority, Linked Issues, History, and Watchers.
 - Row 2 is for planning and release data, such as Epic or Parent, Sprint, Affects Version, and Fix Version.
 - Row 3 is for supporting context, such as Environment, Labels, and custom fields you add.
 
@@ -599,7 +600,7 @@ Business logic and limitations:
 - Start-progress style actions appear only when Jira exposes a matching transition.
 - Sprint actions appear only when Jira exposes a sprint field and available active or future sprints.
 
-### 5.4 Row 1: Issue Type, Status, Priority, History, and Watchers
+### 5.4 Row 1: Issue Type, Status, Priority, Linked Issues, History, and Watchers
 
 Row 1 is the fastest read of the issue.
 
@@ -608,16 +609,48 @@ Default fields:
 - Issue Type tells you whether this is a bug, task, story, sub-task, or another Jira type.
 - Status tells you the current workflow state.
 - Priority tells you the urgency or importance set in Jira.
+- Linked Issues shows how many Jira issues are related to the current ticket and opens the relationship panel.
 - History opens a timeline of issue changes.
 - Watchers shows how many people watch the issue and whether you are watching.
 
 Business logic and limitations:
 
 - Status edit options are Jira transitions from the current state, not a list of every possible project status.
+- Linked-issue actions follow Jira's issue-link permissions and configured link types.
 - The Watchers count comes from Jira's watcher data.
 - History data loads only when you open the history panel, which keeps the initial popup faster.
 
-#### 5.4.1 History Panel
+#### 5.4.1 Linked Issues Panel
+
+![Linked issues grouped by relationship](screenshots/user-guide/popup-linked-issues.png)
+
+The Linked Issues panel shows Jira issue links without leaving the page. Existing links are grouped by their displayed relationship, such as `blocks`, `is blocked by`, or `relates to`.
+
+Each linked issue row includes:
+
+- Issue type and key
+- Summary
+- Current status
+- Assignee avatar, with the full assignee name on hover
+- A remove action that appears on hover and asks for confirmation before deleting the link
+
+To add linked issues:
+
+1. Choose the relationship from the dropdown.
+2. Search by Jira key or summary. Results from the current project are sorted first.
+3. Select one or more autocomplete results, or enter multiple Jira keys separated by commas, spaces, or new lines.
+4. Review the selected key chips and click `Link`.
+
+![Direct multi-key linked issue entry](screenshots/user-guide/popup-linked-issues-multi-select.png)
+
+Business logic and limitations:
+
+- Jira controls which relationship types are available and whether you can create or delete links.
+- A multi-link request may partially succeed. Successful links are refreshed immediately, while failed keys stay selected with an inline error so you can retry.
+- Exact Jira keys can be entered directly. Autocomplete depends on Jira's issue-picker or search APIs.
+- Opening Linked Issues closes History or Watchers if either panel is open.
+
+#### 5.4.2 History Panel
 
 ![History panel](screenshots/marketing-hidpi-light/popup-history.png)
 
@@ -636,9 +669,9 @@ Business logic and limitations:
 - Jira QuickView formats Jira changelog data into grouped entries.
 - Rich text history may be summarized first, with expandable details for longer content.
 - History is a view of Jira's recorded changelog. If Jira does not record a detail, Jira QuickView cannot invent it.
-- Opening History closes Watchers if the Watchers panel is open, so the popup stays readable.
+- Opening History closes Linked Issues or Watchers if either panel is open, so the popup stays readable.
 
-#### 5.4.2 Watchers Panel
+#### 5.4.3 Watchers Panel
 
 The Watchers control shows how many people are watching the issue. Clicking it opens the Watchers panel.
 
@@ -654,7 +687,7 @@ Business logic and limitations:
 - Watcher search uses Jira user search and filters out people who are already watching.
 - Add and remove actions use Jira's watcher APIs and your Jira permissions.
 - If Jira blocks adding or removing a watcher, the panel shows an error and keeps the current list usable.
-- Opening Watchers closes History if History is open.
+- Opening Watchers closes Linked Issues or History if either panel is open.
 
 ### 5.5 Row 2: Epic, Parent, Sprint, Affects Version, and Fix Version
 
@@ -882,7 +915,7 @@ Remember that wildcard patterns use `*`. Do not write raw regex syntax unless yo
 
 1. Open a Jira notification in Gmail or Outlook.
 2. Hover the issue key.
-3. Check status, priority, assignee, description, comments, and watchers.
+3. Check status, priority, assignee, linked issues, description, comments, and watchers.
 4. Assign to yourself, comment, or transition the issue if needed.
 
 ### Review a pull request
@@ -899,7 +932,7 @@ Remember that wildcard patterns use `*`. Do not write raw regex syntax unless yo
 ![Release review workflow](screenshots/marketing-hidpi-light/popup-history.png)
 
 1. Hover each issue key in a release checklist.
-2. Check fix version, status, linked PRs, attachments, and comments.
+2. Check fix version, status, linked Jira issues, linked PRs, attachments, and comments.
 3. Use History to verify recent changes.
 4. Update missing fields or comments before shipping.
 
@@ -908,6 +941,6 @@ Remember that wildcard patterns use `*`. Do not write raw regex syntax unless yo
 ![Attachments and evidence workflow](screenshots/marketing-hidpi-light/popup-attachments.png)
 
 1. Hover the bug's issue key from a QA note or support page.
-2. Read the description, environment, labels, attachments, and comments.
+2. Read the description, environment, labels, linked issues, attachments, and comments.
 3. Use History to understand recent changes.
 4. Add findings as a comment or update the description if Jira allows it.
