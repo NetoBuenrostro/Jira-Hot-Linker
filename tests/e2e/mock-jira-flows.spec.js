@@ -1245,9 +1245,14 @@ test('views, searches, adds, and removes linked issues in mocked mode @mock-only
   await expect(existingRow.locator('._JX_linked_issues_assignee')).toHaveAttribute('title', 'Assignee: Morgan Agent');
 
   const searchInput = panel.getByTestId('jira-popup-linked-issues-search');
-  await searchInput.fill('API');
+  await searchInput.fill('PI');
+  await searchInput.evaluate(input => input.setSelectionRange(0, 0));
+  await searchInput.press('A');
   const results = panel.locator('._JX_linked_issues_search_result');
   await expect(results).toHaveCount(3);
+  await expect(searchInput).toHaveValue('API');
+  await expect(searchInput).toHaveJSProperty('selectionStart', 1);
+  await expect(searchInput).toHaveJSProperty('selectionEnd', 1);
   await expect(results.first()).toHaveAttribute('data-issue-key', 'JRACLOUD-99001');
   await expect(results.first()).not.toContainText('Same project');
 

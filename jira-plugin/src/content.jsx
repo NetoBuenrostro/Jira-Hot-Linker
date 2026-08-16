@@ -5107,7 +5107,13 @@ async function mainAsyncLocal() {
         if (input) {
           input.focus();
           const maxIndex = input.value.length;
-          input.setSelectionRange(maxIndex, maxIndex);
+          const selectionStart = Math.min(maxIndex, Number.isInteger(state.linkedIssuesState.searchSelectionStart)
+            ? state.linkedIssuesState.searchSelectionStart
+            : maxIndex);
+          const selectionEnd = Math.min(maxIndex, Number.isInteger(state.linkedIssuesState.searchSelectionEnd)
+            ? state.linkedIssuesState.searchSelectionEnd
+            : selectionStart);
+          input.setSelectionRange(selectionStart, selectionEnd);
         }
       } else if (state.watchersState?.open && state.watchersState.focusSearch) {
         const input = container.find('._JX_watchers_search_input')[0];
@@ -5482,7 +5488,7 @@ async function mainAsyncLocal() {
     }
   }
 
-  function updateLinkedIssuesSearch(nextValue) {
+  function updateLinkedIssuesSearch(nextValue, selectionStart, selectionEnd) {
     if (!popupState?.linkedIssuesState?.open) {
       return;
     }
@@ -5497,6 +5503,8 @@ async function mainAsyncLocal() {
       ...currentState,
       linkedIssuesState: buildNextLinkedIssuesState(currentState.linkedIssuesState, {
         searchValue,
+        searchSelectionStart: Number.isInteger(selectionStart) ? selectionStart : searchValue.length,
+        searchSelectionEnd: Number.isInteger(selectionEnd) ? selectionEnd : searchValue.length,
         searchLoading: shouldSearch,
         searchRequestId,
         searchResults: [],
@@ -6491,7 +6499,11 @@ async function mainAsyncLocal() {
     if (commitLinkedIssueInput(e.currentTarget.value)) {
       return;
     }
-    updateLinkedIssuesSearch(e.currentTarget.value);
+    updateLinkedIssuesSearch(
+      e.currentTarget.value,
+      e.currentTarget.selectionStart,
+      e.currentTarget.selectionEnd
+    );
   });
 
   $(document.body).on('keydown', '._JX_linked_issues_search_input', function (e) {
