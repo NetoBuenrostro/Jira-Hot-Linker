@@ -48,19 +48,23 @@ export function getConfiguredInstanceUrls(config = {}) {
 }
 
 export function selectInstanceUrl(instanceUrls, pageUrl = '') {
-  const candidates = normalizeInstanceUrls(instanceUrls);
+  const candidates = normalizeInstanceUrls(instanceUrls)
+    .map(resolveInstanceUrl)
+    .filter(Boolean);
   if (!candidates.length) {
     return '';
   }
   try {
     const page = new URL(pageUrl);
-    const matchingCandidate = candidates.find(candidate => {
+    const matchingCandidates = candidates.filter(candidate => {
       const instance = new URL(candidate);
       return page.origin === instance.origin &&
         (instance.pathname === '/' || page.pathname === instance.pathname || page.pathname.startsWith(instance.pathname));
     });
-    if (matchingCandidate) {
-      return matchingCandidate;
+    if (matchingCandidates.length) {
+      return matchingCandidates.sort((left, right) => {
+        return new URL(right).pathname.length - new URL(left).pathname.length;
+      })[0];
     }
   } catch (error) {
     // Fall back to the first configured instance for non-URL pages.
