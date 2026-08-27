@@ -3,6 +3,7 @@ import defaultConfig from 'options/config';
 import uniqueId from 'lodash/uniqueId';
 import regexEscape from 'escape-string-regexp';
 import {storageGet} from 'src/chrome';
+import {getConfiguredInstanceUrls} from 'options/options-utils';
 
 export function toMatchUrl(pattern) {
   if (pattern === '<all_urls>') {
@@ -39,8 +40,8 @@ export const contentScript = 'build/main.js';
 export async function resetDeclarativeMapping() {
   const config = await storageGet(defaultConfig);
   const activationDomains = [...(config.domains || [])];
-  if (config.inlineCopyButtons !== false && config.instanceUrl) {
-    activationDomains.push(config.instanceUrl);
+  if (config.inlineCopyButtons !== false) {
+    activationDomains.push(...getConfiguredInstanceUrls(config));
   }
   const uniqueActivationDomains = activationDomains.filter((domain, index, domains) => {
     return domains.findIndex(candidate => toMatchUrl(candidate) === toMatchUrl(domain)) === index;

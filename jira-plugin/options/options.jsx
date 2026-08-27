@@ -19,6 +19,7 @@ import {
   SIMPLE_SYNC_STORAGE_KEY,
 } from 'src/settings-sync';
 import {
+  normalizeInstanceUrls,
   normalizeInstanceUrl,
   resolveInstanceUrl,
   normalizeCustomFields,
@@ -81,7 +82,7 @@ function ConfigPage(props) {
     ...defaultConfig.displayFields,
     ...(props.displayFields || {})
   });
-  const [instanceUrl, setInstanceUrl] = useState(props.instanceUrl || '');
+  const [instanceUrl, setInstanceUrl] = useState(() => (props.instanceUrls || []).join('\n') || props.instanceUrl || '');
   const [domainsText, setDomainsText] = useState((props.domains || []).join(', '));
   const [themeMode, setThemeMode] = useState(normalizeThemeMode(props.themeMode || DEFAULT_THEME_MODE));
   const [displayFields, setDisplayFields] = useState({
@@ -112,7 +113,7 @@ function ConfigPage(props) {
   const hasInvalidCustomFields = customFieldErrors.some(Boolean);
 
   const savedJsonRef = useRef(buildOptionsSnapshot({
-    instanceUrl: props.instanceUrl || '',
+    instanceUrl: (props.instanceUrls || []).join('\n') || props.instanceUrl || '',
     domainsText: (props.domains || []).join(', '),
     themeMode: normalizeThemeMode(props.themeMode || DEFAULT_THEME_MODE),
     hoverDepth: props.hoverDepth || 'shallow',
@@ -159,7 +160,7 @@ function ConfigPage(props) {
       ...defaultConfig.displayFields,
       ...(config.displayFields || {})
     });
-    const nextInstanceUrl = config.instanceUrl || '';
+    const nextInstanceUrl = (config.instanceUrls || []).join('\n') || config.instanceUrl || '';
     const nextDomainsText = (config.domains || []).join(', ');
     const nextThemeMode = normalizeThemeMode(config.themeMode || DEFAULT_THEME_MODE);
     const nextHoverDepth = config.hoverDepth || 'shallow';
@@ -244,7 +245,7 @@ function ConfigPage(props) {
 
   useEffect(() => {
     let cancelled = false;
-    const normalizedInstanceUrl = normalizeInstanceUrl(instanceUrl || props.instanceUrl);
+    const normalizedInstanceUrl = resolveInstanceUrl(normalizeInstanceUrls(instanceUrl || props.instanceUrl)[0] || '');
     fetchFieldCatalog(normalizedInstanceUrl).then(catalog => {
       if (!cancelled) {
         setFieldCatalog(catalog);
@@ -346,7 +347,8 @@ function ConfigPage(props) {
 
   const exportSettings = () => {
     const config = {
-      instanceUrl,
+      instanceUrl: normalizeInstanceUrls(instanceUrl)[0] || '',
+      instanceUrls: normalizeInstanceUrls(instanceUrl),
       domains: domainsText.split(',').map(x => x.trim()).filter(x => !!x),
       themeMode,
       hoverDepth,
@@ -388,7 +390,7 @@ function ConfigPage(props) {
           return;
         }
 
-        setInstanceUrl(config.instanceUrl || '');
+        setInstanceUrl((config.instanceUrls || []).join('\n') || config.instanceUrl || '');
         setDomainsText((config.domains || []).join(', '));
         setThemeMode(normalizeThemeMode(config.themeMode || 'system'));
         setHoverDepth(config.hoverDepth || 'shallow');
@@ -523,23 +525,23 @@ function ConfigPage(props) {
       .split(',')
       .map(x => x.trim())
       .filter(x => !!x);
-    const rawInstanceUrl = String(instanceUrl || '').trim();
-    const normalizedInstanceUrl = normalizeInstanceUrl(rawInstanceUrl);
+    const rawInstanceUrls = normalizeInstanceUrls(instanceUrl);
 
-    if (!normalizedInstanceUrl) {
+    if (!rawInstanceUrls.length) {
       setStatusTone('error');
       setStatus('You must provide your Jira instance URL.');
       return;
     }
 
-    const resolvedInstanceUrl = resolveInstanceUrl(rawInstanceUrl);
-    if (!resolvedInstanceUrl) {
+    const resolvedInstanceUrls = rawInstanceUrls.map(resolveInstanceUrl);
+    if (resolvedInstanceUrls.some(url => !url)) {
       setStatusTone('error');
       setStatus('Enter your Jira base URL or a recognizable Jira page URL.');
       return;
     }
 
-    setInstanceUrl(resolvedInstanceUrl);
+    setInstanceUrl(resolvedInstanceUrls.join('\n'));
+    const resolvedInstanceUrl = resolvedInstanceUrls[0];
 
     const shouldPersistSimpleSyncSource = simpleSyncState.enabled || (isUrlSyncSource
       ? !!String(syncUrl || '').trim()
@@ -566,7 +568,7 @@ function ConfigPage(props) {
       }
     }
 
-    const permissionDomains = domains.concat([resolvedInstanceUrl]);
+    const permissionDomains = domains.concat(resolvedInstanceUrls);
     const currentInstanceUrl = await storageGet(defaultConfig);
     if (!currentInstanceUrl.instanceUrl) {
       domains.push(resolvedInstanceUrl);
@@ -618,6 +620,7 @@ function ConfigPage(props) {
     try {
       let nextConfig = {
         instanceUrl: resolvedInstanceUrl,
+        instanceUrls: resolvedInstanceUrls,
         domains,
         themeMode: normalizeThemeMode(themeMode),
         v15upgrade: true,
@@ -734,14 +737,14 @@ function ConfigPage(props) {
           <div className='cardBody'>
             <label className='formField'>
               <span className='fieldLabel'>Jira instance URL</span>
-                <input
+                <textarea
                   data-testid='options-instance-url'
                   id='instanceUrl'
-                type='text'
+                rows='3'
                 value={instanceUrl}
                 onChange={event => setInstanceUrl(event.target.value)}
-                placeholder='https://your-company.atlassian.net/' />
-              <span className='fieldHelp'>Used for issue metadata, field discovery, and link targets.</span>
+                placeholder='https://your-company.atlassian.net/\nhttps://jira.example.com/' />
+              <span className='fieldHelp'>Enter one Jira instance URL per line. The matching instance is used on Jira pages; the first is used elsewhere.</span>
             </label>
 
             <label className='formField'>

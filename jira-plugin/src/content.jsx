@@ -32,6 +32,7 @@ import {createPopupQuickActions} from 'src/popup-quick-actions';
 import {createPopupCommentComposer} from 'src/popup-comment-composer';
 import {buildJiraSearchRequestUrls, isEpicLinkField, isParentLinkField, isSprintField} from 'src/jira-issue-helpers';
 import config, {buildTooltipLayoutFromDisplayFields} from 'options/config.js';
+import {getConfiguredInstanceUrls, selectInstanceUrl} from 'options/options-utils';
 import {DEFAULT_THEME_MODE, syncDocumentTheme} from 'src/theme';
 import {copyIssueReference} from 'src/issue-reference-copy';
 import {installJiraInlineCopyButtons} from 'src/jira-inline-copy';
@@ -372,7 +373,7 @@ async function mainAsyncLocal() {
     resolvedConfig: config,
     hasStoredTooltipLayout
   } = await getConfig();
-  const INSTANCE_URL = config.instanceUrl;
+  const INSTANCE_URL = selectInstanceUrl(getConfiguredInstanceUrls(config), window.location.href);
   const storedCommentSortState = await storageLocalGet({
     [COMMENT_SORT_ORDER_STORAGE_KEY]: DEFAULT_COMMENT_SORT_ORDER
   }).catch(() => ({
@@ -461,7 +462,7 @@ async function mainAsyncLocal() {
   });
 
   try {
-    jiraProjects = normalizeJiraProjectsResponse(await get(await getInstanceUrl() + 'rest/api/2/project'));
+    jiraProjects = normalizeJiraProjectsResponse(await get(INSTANCE_URL + 'rest/api/2/project'));
   } catch (ex) {
     // Keep hover support alive offline; only notify on explicit hover fetch failures.
   }

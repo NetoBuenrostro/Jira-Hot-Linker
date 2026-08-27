@@ -1,7 +1,7 @@
 /*global chrome */
 import regexEscape from 'escape-string-regexp';
 import defaultConfig from 'options/config.js';
-import {normalizeInstanceUrl, resolveInstanceUrl} from 'options/options-utils';
+import {getConfiguredInstanceUrls, normalizeInstanceUrl, resolveInstanceUrl} from 'options/options-utils';
 import {storageGet, storageSet, storageLocalGet, storageLocalSet, permissionsContains, promisifyChrome} from 'src/chrome';
 import {contentScript, resetDeclarativeMapping, toMatchUrl} from 'options/declarative';
 import {buildJiraSearchRequestUrls, buildPopupIssueMetadataUrl, isEpicLinkField, isSprintField} from 'src/jira-issue-helpers';
@@ -56,6 +56,11 @@ async function getResolvedInstanceUrl(instanceUrl = undefined) {
   return resolvedInstanceUrl;
 }
 
+async function getResolvedInstanceUrls() {
+  const config = await storageGet(defaultConfig);
+  return getConfiguredInstanceUrls(config).map(resolveInstanceUrl).filter(Boolean);
+}
+
 async function getInstanceOrigin() {
   const instanceUrl = await getResolvedInstanceUrl();
   if (!instanceUrl) {
@@ -96,8 +101,8 @@ async function assertAllowedRequestUrl(rawUrl, {allowExtension = false} = {}) {
     throw new Error('Unsupported URL protocol');
   }
 
-  const instanceOrigin = await getInstanceOrigin();
-  if (!instanceOrigin || parsed.origin !== instanceOrigin) {
+  const instanceOrigins = (await getResolvedInstanceUrls()).map(instanceUrl => new URL(instanceUrl).origin);
+  if (!instanceOrigins.includes(parsed.origin)) {
     throw new Error('URL is outside configured Jira instance');
   }
 
@@ -116,8 +121,11 @@ async function assertAllowedSimpleSyncRequestUrl(rawUrl, instanceUrlOverride = '
     throw new Error('Unsupported URL protocol');
   }
 
-  const instanceOrigin = await getOriginForInstanceUrl(instanceUrlOverride) || await getInstanceOrigin();
-  if (!instanceOrigin || parsed.origin !== instanceOrigin) {
+  const instanceOrigin = await getOriginForInstanceUrl(instanceUrlOverride);
+  const instanceOrigins = instanceOrigin
+    ? [instanceOrigin]
+    : (await getResolvedInstanceUrls()).map(instanceUrl => new URL(instanceUrl).origin);
+  if (!instanceOrigins.includes(parsed.origin)) {
     throw new Error('URL is outside configured Jira instance');
   }
 

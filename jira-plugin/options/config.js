@@ -17,6 +17,7 @@ export function buildTooltipLayoutFromDisplayFields(displayFields) {
 export default {
   domains: [],
   instanceUrl: '',
+  instanceUrls: [],
   themeMode: 'system',
   v15upgrade: false,
   customFields: [],

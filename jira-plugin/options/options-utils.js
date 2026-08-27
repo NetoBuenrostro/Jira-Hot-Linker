@@ -32,6 +32,42 @@ export function normalizeInstanceUrl(instanceUrl) {
   }
 }
 
+export function normalizeInstanceUrls(instanceUrls) {
+  const values = Array.isArray(instanceUrls)
+    ? instanceUrls
+    : String(instanceUrls || '').split(/[\r\n]+/);
+  const normalized = values
+    .flatMap(value => String(value || '').split(',').map(entry => normalizeInstanceUrl(entry)))
+    .filter(Boolean);
+  return normalized.filter((value, index) => normalized.indexOf(value) === index);
+}
+
+export function getConfiguredInstanceUrls(config = {}) {
+  const configured = normalizeInstanceUrls(config.instanceUrls);
+  return configured.length ? configured : normalizeInstanceUrls(config.instanceUrl);
+}
+
+export function selectInstanceUrl(instanceUrls, pageUrl = '') {
+  const candidates = normalizeInstanceUrls(instanceUrls);
+  if (!candidates.length) {
+    return '';
+  }
+  try {
+    const page = new URL(pageUrl);
+    const matchingCandidate = candidates.find(candidate => {
+      const instance = new URL(candidate);
+      return page.origin === instance.origin &&
+        (instance.pathname === '/' || page.pathname === instance.pathname || page.pathname.startsWith(instance.pathname));
+    });
+    if (matchingCandidate) {
+      return matchingCandidate;
+    }
+  } catch (error) {
+    // Fall back to the first configured instance for non-URL pages.
+  }
+  return candidates[0];
+}
+
 const ROOT_LEVEL_JIRA_SEGMENTS = new Set([
   'browse',
   'issues',

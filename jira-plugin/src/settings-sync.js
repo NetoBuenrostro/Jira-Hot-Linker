@@ -1,6 +1,6 @@
 import defaultConfig from 'options/config.js';
 import {toMatchUrl} from 'options/declarative';
-import {normalizeCustomFields, normalizeInstanceUrl} from 'options/options-utils';
+import {getConfiguredInstanceUrls, normalizeCustomFields, normalizeInstanceUrl} from 'options/options-utils';
 import {normalizeThemeMode} from 'src/theme';
 
 export const SIMPLE_SYNC_STORAGE_KEY = 'jqv.simpleSync';
@@ -15,6 +15,7 @@ export const SIMPLE_SYNC_SOURCE_TYPES = {
 
 export const DEFAULT_SYNC_POLICY = {
   instanceUrl: 'locked',
+  instanceUrls: 'locked',
   domains: 'default',
   themeMode: 'unmanaged',
   hoverDepth: 'default',
@@ -209,16 +210,12 @@ export function getSimpleSyncSourcePermissionOrigins(state, config = {}) {
       return [];
     }
   }
-  const instanceUrl = normalizeInstanceUrl(config.instanceUrl || '');
-  return instanceUrl ? [instanceUrl] : [];
+  return getConfiguredInstanceUrls(config);
 }
 
 export function getConfigPermissionOrigins(config = {}) {
   const origins = [];
-  const instanceUrl = normalizeInstanceUrl(config.instanceUrl || '');
-  if (instanceUrl) {
-    origins.push(instanceUrl);
-  }
+  origins.push(...getConfiguredInstanceUrls(config));
   (config.domains || []).forEach(domain => origins.push(domain));
   return uniqueStrings(origins).map(toMatchUrl);
 }
@@ -247,6 +244,16 @@ export function normalizeSettingsPayload(payload) {
       throw new Error('Settings file includes an invalid Jira instance URL.');
     }
     settings.instanceUrl = normalizedInstanceUrl;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(rawSettings, 'instanceUrls')) {
+    const instanceUrls = Array.isArray(rawSettings.instanceUrls) ? rawSettings.instanceUrls : [];
+    const normalizedInstanceUrls = instanceUrls.map(normalizeInstanceUrl).filter(Boolean);
+    if (!normalizedInstanceUrls.length) {
+      throw new Error('Settings file includes invalid Jira instance URLs.');
+    }
+    settings.instanceUrls = uniqueStrings(normalizedInstanceUrls);
+    settings.instanceUrl = settings.instanceUrls[0];
   }
 
   if (Object.prototype.hasOwnProperty.call(rawSettings, 'domains')) {
