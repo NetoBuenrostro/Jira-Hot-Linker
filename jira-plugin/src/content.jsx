@@ -65,24 +65,26 @@ const getConfig = async () => {
 
 // ── Field ID Resolution ─────────────────────────────────────────
 
-let allFieldsPromise;
+const allFieldsPromises = new Map();
 
 function getAllFields(instanceUrl) {
-  if (!allFieldsPromise) {
-    allFieldsPromise = get(instanceUrl + 'rest/api/2/field')
+  const cacheKey = String(instanceUrl || '');
+  if (!allFieldsPromises.has(cacheKey)) {
+    const fieldsPromise = get(instanceUrl + 'rest/api/2/field')
       .then(fields => {
         const normalizedFields = Array.isArray(fields) ? fields : [];
         if (!normalizedFields.length) {
-          allFieldsPromise = null;
+          allFieldsPromises.delete(cacheKey);
         }
         return normalizedFields;
       })
       .catch(() => {
-        allFieldsPromise = null;
+        allFieldsPromises.delete(cacheKey);
         return [];
       });
+    allFieldsPromises.set(cacheKey, fieldsPromise);
   }
-  return allFieldsPromise;
+  return allFieldsPromises.get(cacheKey);
 }
 
 function getFieldIdsByFilter(instanceUrl, filterFn) {
@@ -375,6 +377,10 @@ async function mainAsyncLocal() {
     hasStoredTooltipLayout
   } = await getConfig();
   let INSTANCE_URL = selectInstanceUrl(getConfiguredInstanceUrls(config), window.location.href);
+  const INSTANCE_URL_REF = {
+    toString: () => INSTANCE_URL,
+    valueOf: () => INSTANCE_URL
+  };
   const INSTANCE_URLS = getConfiguredInstanceUrls(config);
   const storedCommentSortState = await storageLocalGet({
     [COMMENT_SORT_ORDER_STORAGE_KEY]: DEFAULT_COMMENT_SORT_ORDER
@@ -445,7 +451,7 @@ async function mainAsyncLocal() {
   const customFields = normalizeCustomFields(config.customFields, tooltipLayout);
   installJiraInlineCopyButtons({
     document,
-    instanceUrl: INSTANCE_URL,
+    instanceUrl: INSTANCE_URL_REF,
     enabled: config.inlineCopyButtons !== false,
     copy: reference => copyIssueReferenceWithFeedback(reference)
       .catch(() => snackBar('There was an error!')),
@@ -601,7 +607,7 @@ async function mainAsyncLocal() {
     get,
     getEpicLinkFieldIds,
     getSprintFieldIds,
-    instanceUrl: INSTANCE_URL,
+    instanceUrl: INSTANCE_URL_REF,
     issueCache,
   });
   const {formatChangelogForDisplay} = createContentHistoryHelpers({
@@ -615,7 +621,7 @@ async function mainAsyncLocal() {
     dedupeHistoryAttachments,
     escapeHtml,
     fallbackJiraKeyPattern: FALLBACK_JIRA_KEY_PATTERN,
-    instanceUrl: INSTANCE_URL,
+    instanceUrl: INSTANCE_URL_REF,
     normalizeHistoryAttachmentName,
     normalizeIssueKey,
     normalizeRichHtml,
@@ -633,7 +639,7 @@ async function mainAsyncLocal() {
     getAllFields,
     getCachedValue,
     getSprintFieldIds,
-    instanceUrl: INSTANCE_URL,
+    instanceUrl: INSTANCE_URL_REF,
     transitionOptionsCache,
   });
   const {
@@ -647,7 +653,7 @@ async function mainAsyncLocal() {
     getCachedValue,
     getIssueEditMeta: () => getIssueEditMeta,
     getIssueSummary,
-    instanceUrl: INSTANCE_URL,
+    instanceUrl: INSTANCE_URL_REF,
     issueSearchCache,
     issueSearchRecentCache,
   });
@@ -659,7 +665,7 @@ async function mainAsyncLocal() {
     encodeJqlValue,
     get,
     getCachedValue,
-    instanceUrl: INSTANCE_URL,
+    instanceUrl: INSTANCE_URL_REF,
     issueSearchCache,
   });
   let labelSuggestionSupportPromise = null;
@@ -691,7 +697,7 @@ async function mainAsyncLocal() {
     getCurrentUserInfo,
     resolveQuickActions,
   } = createPopupQuickActions({
-    INSTANCE_URL,
+    INSTANCE_URL: INSTANCE_URL_REF,
     formatSprintActionLabel,
     get,
     getProjectSprintOptions,
@@ -759,7 +765,7 @@ async function mainAsyncLocal() {
     submitFieldEdit,
     toggleMultiSelectOptionFromInput,
   } = createPopupEditing({
-    INSTANCE_URL,
+    INSTANCE_URL: INSTANCE_URL_REF,
     assigneeLocalOptionsCache,
     buildEditFieldError,
     compareSprintState,
@@ -813,7 +819,7 @@ async function mainAsyncLocal() {
     syncCommentMentionSuggestions,
     uploadPastedImage,
   } = createPopupCommentComposer({
-    INSTANCE_URL,
+    INSTANCE_URL: INSTANCE_URL_REF,
     emptyCommentMentionState,
     emptyCommentUploadState,
     escapeHtml,

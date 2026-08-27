@@ -340,7 +340,20 @@ export function createContentDisplayHelpers(options) {
     const attachments = issueData.fields.attachment || [];
     const previewAttachments = options?.buildPreviewAttachments(attachments);
     const labels = issueData.fields.labels || [];
-    const linkageData = await resolveIssueLinkage(issueData);
+    let linkageData = {
+      currentLink: null,
+      editable: false,
+      label: 'Parent',
+      mode: 'parent'
+    };
+    try {
+      linkageData = await resolveIssueLinkage(issueData);
+    } catch (error) {
+      console.warn('[Jira QuickView] Parent or epic link lookup failed', {
+        issueKey: key,
+        error: error?.message || String(error)
+      });
+    }
     const issueTypeName = issueData.fields.issuetype?.name;
     const statusName = issueData.fields.status?.name;
     const priorityName = issueData.fields.priority?.name;
