@@ -373,7 +373,8 @@ async function mainAsyncLocal() {
     resolvedConfig: config,
     hasStoredTooltipLayout
   } = await getConfig();
-  const INSTANCE_URL = selectInstanceUrl(getConfiguredInstanceUrls(config), window.location.href);
+  let INSTANCE_URL = selectInstanceUrl(getConfiguredInstanceUrls(config), window.location.href);
+  const INSTANCE_URLS = getConfiguredInstanceUrls(config);
   const storedCommentSortState = await storageLocalGet({
     [COMMENT_SORT_ORDER_STORAGE_KEY]: DEFAULT_COMMENT_SORT_ORDER
   }).catch(() => ({
@@ -461,16 +462,17 @@ async function mainAsyncLocal() {
     stopSyncDocumentTheme = syncDocumentTheme(document, changes.themeMode.newValue || DEFAULT_THEME_MODE);
   });
 
-  try {
-    jiraProjects = normalizeJiraProjectsResponse(await get(INSTANCE_URL + 'rest/api/2/project'));
-  } catch (ex) {
-    // Keep hover support alive offline; only notify on explicit hover fetch failures.
-  }
-
-  if (size(jiraProjects)) {
-    getJiraKeys = buildJiraKeyMatcher(jiraProjects.map(function (project) {
-      return project.key;
-    }));
+  const projectResponses = await Promise.all(INSTANCE_URLS.map(async instanceUrl => {
+    try {
+      return normalizeJiraProjectsResponse(await get(instanceUrl + 'rest/api/2/project'));
+    } catch (ex) {
+      return [];
+    }
+  }));
+  jiraProjects = projectResponses.flat();
+  const projectKeys = jiraProjects.map(project => project.key);
+  if (projectKeys.length) {
+    getJiraKeys = buildJiraKeyMatcher(projectKeys);
   }
 
   const annotationTemplate = await fetch(chrome.runtime.getURL('resources/annotation.html')).then(response => response.text());
@@ -7546,7 +7548,16 @@ async function mainAsyncLocal() {
       discardDescriptionEditStateSnapshot(popupState.descriptionEditState, {deleteUploaded: true}).catch(() => {});
     }
     (async function (cancelToken) {
-      const issueData = await getIssueMetaData(key);
+      const successfulIssue = await Promise.any(INSTANCE_URLS.map(async instanceUrl => ({
+        instanceUrl,
+        issueData: await getIssueMetaData(key, instanceUrl)
+      })));
+      const issueData = successfulIssue.issueData;
+      INSTANCE_URL = successfulIssue.instanceUrl;
+      console.info('[Jira QuickView] Issue found', {
+        issueKey: key,
+        instanceUrl: INSTANCE_URL
+      });
       await normalizeIssueImages(issueData);
       let children = [];
       let childrenJql = '';

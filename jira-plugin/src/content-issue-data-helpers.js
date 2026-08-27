@@ -55,13 +55,14 @@ export function createContentIssueDataHelpers(options) {
     });
   }
 
-  async function getIssueMetaData(issueKey) {
-    return getCachedValue(issueCache, issueKey, async () => {
+  async function getIssueMetaData(issueKey, requestedInstanceUrl = instanceUrl) {
+    const issueCacheKey = `${requestedInstanceUrl}__${issueKey}`;
+    return getCachedValue(issueCache, issueCacheKey, async () => {
       const [sprintFieldIds, epicLinkFieldIds] = await Promise.all([
-        getSprintFieldIds(instanceUrl),
-        getEpicLinkFieldIds(instanceUrl)
+        getSprintFieldIds(requestedInstanceUrl),
+        getEpicLinkFieldIds(requestedInstanceUrl)
       ]);
-      return get(buildPopupIssueMetadataUrl(instanceUrl, issueKey, {
+      return get(buildPopupIssueMetadataUrl(requestedInstanceUrl, issueKey, {
         sprintFieldIds,
         epicLinkFieldIds,
         customFields,
