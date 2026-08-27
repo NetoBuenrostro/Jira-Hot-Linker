@@ -33,11 +33,9 @@ export function normalizeInstanceUrl(instanceUrl) {
 }
 
 export function normalizeInstanceUrls(instanceUrls) {
-  const values = Array.isArray(instanceUrls)
-    ? instanceUrls
-    : String(instanceUrls || '').split(/[\r\n]+/);
+  const values = Array.isArray(instanceUrls) ? instanceUrls : [instanceUrls];
   const normalized = values
-    .flatMap(value => String(value || '').split(',').map(entry => normalizeInstanceUrl(entry)))
+    .flatMap(value => String(value || '').split(/\r?\n|\r|,/).map(entry => normalizeInstanceUrl(entry.trim())))
     .filter(Boolean);
   return normalized.filter((value, index) => normalized.indexOf(value) === index);
 }

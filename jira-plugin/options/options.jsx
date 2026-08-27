@@ -415,8 +415,8 @@ function ConfigPage(props) {
     setIsSyncing(true);
     try {
       const currentConfig = await storageGet(defaultConfig);
-      const savedInstanceUrl = resolveInstanceUrl(currentConfig.instanceUrl || '') || normalizeInstanceUrl(currentConfig.instanceUrl || '');
-      const draftInstanceUrl = resolveInstanceUrl(instanceUrl || '') || normalizeInstanceUrl(instanceUrl || '');
+      const savedInstanceUrl = resolveInstanceUrl(normalizeInstanceUrls(currentConfig.instanceUrls || currentConfig.instanceUrl)[0] || '') || normalizeInstanceUrl(currentConfig.instanceUrl || '');
+      const draftInstanceUrl = resolveInstanceUrl(normalizeInstanceUrls(instanceUrl)[0] || '') || normalizeInstanceUrl(instanceUrl || '');
       const effectiveInstanceUrl = draftInstanceUrl || savedInstanceUrl;
       const nextSimpleSyncState = buildSimpleSyncState({
         sourceType: syncSourceType,

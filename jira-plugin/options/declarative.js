@@ -49,13 +49,13 @@ export async function resetDeclarativeMapping() {
   chrome.declarativeContent.onPageChanged.removeRules(
     undefined,
     function () {
-      chrome.declarativeContent.onPageChanged.addRules([{
-        conditions: uniqueActivationDomains.map(pageStateWildCardMatcher),
+      chrome.declarativeContent.onPageChanged.addRules(uniqueActivationDomains.map(domain => ({
+        conditions: [pageStateWildCardMatcher(domain)],
         actions: [new chrome.declarativeContent.RequestContentScript({
           js: [contentScript],
           allFrames: true,
         })]
-      }]);
+      })));
     }
   );
 }
