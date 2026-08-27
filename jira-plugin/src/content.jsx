@@ -7592,7 +7592,9 @@ async function mainAsyncLocal() {
         issueKey: key,
         instanceUrl: INSTANCE_URL
       });
+      console.debug('[Jira QuickView] Normalizing issue images', {issueKey: key});
       await normalizeIssueImages(issueData);
+      console.debug('[Jira QuickView] Issue images normalized', {issueKey: key});
       let children = [];
       let childrenJql = '';
       let childrenError = '';
@@ -7668,13 +7670,25 @@ async function mainAsyncLocal() {
         linkedIssuesState: emptyLinkedIssuesState(),
         timeTrackingEditState: createTimeTrackingEditState(issueData),
       });
+      console.info('[Jira QuickView] Popup rendered', {
+        issueKey: key,
+        instanceUrl: INSTANCE_URL
+      });
     })(cancelToken).catch((error) => {
+      console.error('[Jira QuickView] Popup loading failed', {
+        issueKey: key,
+        instanceUrl: INSTANCE_URL,
+        error: formatPageDiagnosticError(error)
+      });
       notifyJiraConnectionFailure(INSTANCE_URL, error);
       lastHoveredKey = '';
     });
   }
 
   function triggerPopupForKey(key, pointerX, pointerY, immediate) {
+    if (lastHoveredKey === key) {
+      return;
+    }
     clearTimeout(hoverDelayTimeout);
     lastHoveredKey = key;
     if (immediate) {
