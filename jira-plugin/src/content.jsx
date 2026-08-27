@@ -281,6 +281,7 @@ function unwrapResponse(response, defaultError = 'Request failed') {
 }
 
 async function get(url) {
+  console.debug('[Jira QuickView] GET request', url);
   return unwrapResponse(await sendMessage({action: 'get', url: url}));
 }
 
@@ -5009,6 +5010,7 @@ async function mainAsyncLocal() {
   let hoverDelayTimeout;
   let containerPinned = false;
   let lastHoveredKey = '';
+  let loadingPopupKey = '';
   const container = $('<div class="_JX_container" data-testid="jira-popup-root">');
   const previewOverlay = $(`
     <div class="_JX_preview_overlay" data-testid="jira-popup-preview-overlay">
@@ -7553,6 +7555,10 @@ async function mainAsyncLocal() {
   }
 
   function fetchAndShowPopup(key, pointerX, pointerY) {
+    if (loadingPopupKey === key || popupState?.key === key) {
+      return;
+    }
+    loadingPopupKey = key;
     if (popupState?.key && popupState.key !== key && popupState.descriptionEditState?.open) {
       clearDescriptionStatusTimer();
       discardDescriptionEditStateSnapshot(popupState.descriptionEditState, {deleteUploaded: true}).catch(() => {});
@@ -7682,11 +7688,15 @@ async function mainAsyncLocal() {
       });
       notifyJiraConnectionFailure(INSTANCE_URL, error);
       lastHoveredKey = '';
+    }).finally(() => {
+      if (loadingPopupKey === key) {
+        loadingPopupKey = '';
+      }
     });
   }
 
   function triggerPopupForKey(key, pointerX, pointerY, immediate) {
-    if (lastHoveredKey === key) {
+    if (lastHoveredKey === key || loadingPopupKey === key || popupState?.key === key) {
       return;
     }
     clearTimeout(hoverDelayTimeout);
