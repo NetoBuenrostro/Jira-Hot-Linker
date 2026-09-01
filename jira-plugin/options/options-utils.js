@@ -52,8 +52,13 @@ export function normalizeInstanceUrls(instanceUrls) {
 }
 
 export function getConfiguredInstanceUrls(config = {}) {
-  const configured = normalizeInstanceUrls(config.instanceUrls);
-  return configured.length ? configured : normalizeInstanceUrls(config.instanceUrl);
+  const configured = normalizeInstanceUrls(config.instanceUrls)
+    .map(resolveInstanceUrl)
+    .filter(Boolean);
+
+  return configured.length ? [...new Set(configured)] : normalizeInstanceUrls(config.instanceUrl)
+    .map(resolveInstanceUrl)
+    .filter(Boolean);
 }
 
 export function selectInstanceUrl(instanceUrls, pageUrl = '') {
@@ -103,7 +108,13 @@ function isAtlassianCloudHost(hostname) {
 }
 
 export function resolveInstanceUrl(instanceUrl) {
-  const normalized = normalizeInstanceUrl(instanceUrl);
+  const rawEntry = String(instanceUrl || '').trim();
+  if (!rawEntry) {
+    return '';
+  }
+
+  const urlPart = rawEntry.split(',')[0].trim();
+  const normalized = normalizeInstanceUrl(urlPart);
   if (!normalized) {
     return '';
   }
@@ -153,30 +164,30 @@ export function resolveInstanceUrl(instanceUrl) {
 export function parseInstanceUrlsWithPrefixes(rawInput) {
   const prefixMap = new Map();
   const instanceUrls = [];
-  
-  const lines = String(rawInput || '').split(/\r?\n/).filter(line => line.trim());
-  
-  lines.forEach(line => {
-    const parts = line.split(',').map(part => part.trim()).filter(Boolean);
+
+  const rawLines = Array.isArray(rawInput)
+    ? rawInput.flatMap(value => String(value || '').split(/\r?\n|\r/))
+    : String(rawInput || '').split(/\r?\n|\r/);
+
+  rawLines.filter(line => String(line || '').trim()).forEach(line => {
+    const parts = String(line || '').split(',').map(part => part.trim()).filter(Boolean);
     if (!parts.length) {
       return;
     }
-    
+
     const urlPart = parts[0];
     const normalized = normalizeInstanceUrl(urlPart);
-    
+
     if (!normalized) {
       return;
     }
-    
+
     instanceUrls.push(normalized);
-    
-    // If no prefixes specified, skip building prefix map for this URL
+
     if (parts.length === 1) {
       return;
     }
-    
-    // Add all prefixes for this URL to the map
+
     parts.slice(1).forEach(prefix => {
       const key = String(prefix || '').toUpperCase().trim();
       if (key) {
@@ -184,7 +195,7 @@ export function parseInstanceUrlsWithPrefixes(rawInput) {
       }
     });
   });
-  
+
   return {
     prefixMap,
     instanceUrls: [...new Set(instanceUrls)]

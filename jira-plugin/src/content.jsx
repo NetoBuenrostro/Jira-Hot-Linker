@@ -32,7 +32,12 @@ import {createPopupQuickActions} from 'src/popup-quick-actions';
 import {createPopupCommentComposer} from 'src/popup-comment-composer';
 import {buildJiraSearchRequestUrls, isEpicLinkField, isParentLinkField, isSprintField} from 'src/jira-issue-helpers';
 import config, {buildTooltipLayoutFromDisplayFields} from 'options/config.js';
-import {getConfiguredInstanceUrls, selectInstanceUrl} from 'options/options-utils';
+import {
+  findInstanceUrlByIssueKey,
+  getConfiguredInstanceUrls,
+  parseInstanceUrlsWithPrefixes,
+  selectInstanceUrl,
+} from 'options/options-utils';
 import {DEFAULT_THEME_MODE, syncDocumentTheme} from 'src/theme';
 import {copyIssueReference} from 'src/issue-reference-copy';
 import {installJiraInlineCopyButtons} from 'src/jira-inline-copy';
@@ -375,12 +380,15 @@ async function mainAsyncLocal() {
     resolvedConfig: config,
     hasStoredTooltipLayout
   } = await getConfig();
-  let INSTANCE_URL = selectInstanceUrl(getConfiguredInstanceUrls(config), window.location.href);
+  const {prefixMap: INSTANCE_PREFIX_MAP, instanceUrls: PARSED_INSTANCE_URLS} = parseInstanceUrlsWithPrefixes(
+    config.instanceUrls || config.instanceUrl || ''
+  );
+  const INSTANCE_URLS = PARSED_INSTANCE_URLS.length ? PARSED_INSTANCE_URLS : getConfiguredInstanceUrls(config);
+  let INSTANCE_URL = selectInstanceUrl(INSTANCE_URLS, window.location.href);
   const INSTANCE_URL_REF = {
     toString: () => INSTANCE_URL,
     valueOf: () => INSTANCE_URL
   };
-  const INSTANCE_URLS = getConfiguredInstanceUrls(config);
   const storedCommentSortState = await storageLocalGet({
     [COMMENT_SORT_ORDER_STORAGE_KEY]: DEFAULT_COMMENT_SORT_ORDER
   }).catch(() => ({
@@ -7559,7 +7567,11 @@ async function mainAsyncLocal() {
       discardDescriptionEditStateSnapshot(popupState.descriptionEditState, {deleteUploaded: true}).catch(() => {});
     }
     (async function (cancelToken) {
-      const successfulIssue = await Promise.any(INSTANCE_URLS.map(async instanceUrl => {
+      const preferredInstanceUrl = findInstanceUrlByIssueKey(INSTANCE_PREFIX_MAP, INSTANCE_URLS, key);
+      const candidateInstanceUrls = preferredInstanceUrl
+        ? [preferredInstanceUrl, ...INSTANCE_URLS.filter(instanceUrl => instanceUrl !== preferredInstanceUrl)]
+        : INSTANCE_URLS;
+      const successfulIssue = await Promise.any(candidateInstanceUrls.map(async instanceUrl => {
         try {
           const issueData = await getIssueMetaData(key, instanceUrl);
           return {instanceUrl, issueData};

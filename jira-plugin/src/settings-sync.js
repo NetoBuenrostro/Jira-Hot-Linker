@@ -1,6 +1,6 @@
 import defaultConfig from 'options/config.js';
 import {toMatchUrl} from 'options/declarative';
-import {getConfiguredInstanceUrls, normalizeCustomFields, normalizeInstanceUrl} from 'options/options-utils';
+import {getConfiguredInstanceUrls, normalizeCustomFields, normalizeInstanceUrl, normalizeInstanceUrls} from 'options/options-utils';
 import {normalizeThemeMode} from 'src/theme';
 
 export const SIMPLE_SYNC_STORAGE_KEY = 'jqv.simpleSync';
@@ -248,12 +248,12 @@ export function normalizeSettingsPayload(payload) {
 
   if (Object.prototype.hasOwnProperty.call(rawSettings, 'instanceUrls')) {
     const instanceUrls = Array.isArray(rawSettings.instanceUrls) ? rawSettings.instanceUrls : [];
-    const normalizedInstanceUrls = instanceUrls.map(normalizeInstanceUrl).filter(Boolean);
+    const normalizedInstanceUrls = normalizeInstanceUrls(instanceUrls);
     if (!normalizedInstanceUrls.length) {
       throw new Error('Settings file includes invalid Jira instance URLs.');
     }
     settings.instanceUrls = uniqueStrings(normalizedInstanceUrls);
-    settings.instanceUrl = settings.instanceUrls[0];
+    settings.instanceUrl = settings.instanceUrls[0].split(',')[0];
   }
 
   if (Object.prototype.hasOwnProperty.call(rawSettings, 'domains')) {
