@@ -132,6 +132,87 @@ export function resolveInstanceUrl(instanceUrl) {
   }
 }
 
+/**
+ * Parse instance URLs with optional issue key prefixes.
+ * Format: url,PREFIX1,PREFIX2\nurl,PREFIX3
+ * Returns: Map of prefix -> normalized URL, and array of normalized URLs (for fallback)
+ * @param {string} rawInput - Raw textarea input
+ * @returns {{prefixMap: Map, instanceUrls: string[]}}
+ */
+export function parseInstanceUrlsWithPrefixes(rawInput) {
+  const prefixMap = new Map();
+  const instanceUrls = [];
+  
+  const lines = String(rawInput || '').split(/\r?\n/).filter(line => line.trim());
+  
+  lines.forEach(line => {
+    const parts = line.split(',').map(part => part.trim()).filter(Boolean);
+    if (!parts.length) {
+      return;
+    }
+    
+    const urlPart = parts[0];
+    const normalized = normalizeInstanceUrl(urlPart);
+    
+    if (!normalized) {
+      return;
+    }
+    
+    instanceUrls.push(normalized);
+    
+    // If no prefixes specified, skip building prefix map for this URL
+    if (parts.length === 1) {
+      return;
+    }
+    
+    // Add all prefixes for this URL to the map
+    parts.slice(1).forEach(prefix => {
+      const key = String(prefix || '').toUpperCase().trim();
+      if (key) {
+        prefixMap.set(key, normalized);
+      }
+    });
+  });
+  
+  return {
+    prefixMap,
+    instanceUrls: [...new Set(instanceUrls)]
+  };
+}
+
+/**
+ * Extract issue key prefix from a full key like "CS-123" -> "CS"
+ * @param {string} issueKey - Full issue key
+ * @returns {string} Uppercase prefix
+ */
+export function extractIssuePrefixFromKey(issueKey) {
+  const match = String(issueKey || '').match(/^([A-Z]+)/);
+  return match ? match[1].toUpperCase() : '';
+}
+
+/**
+ * Find the instance URL for an issue key using prefix mapping.
+ * Falls back to configured instances if no prefix match found.
+ * @param {Map} prefixMap - Map of prefix -> instanceUrl
+ * @param {string[]} instanceUrls - Fallback list of instance URLs
+ * @param {string} issueKey - Issue key to look up
+ * @returns {string|null} Instance URL or null if not found
+ */
+export function findInstanceUrlByIssueKey(prefixMap, instanceUrls, issueKey) {
+  const prefix = extractIssuePrefixFromKey(issueKey);
+  
+  if (prefix && prefixMap.has(prefix)) {
+    return prefixMap.get(prefix);
+  }
+  
+  // Fallback: if no prefix match and instanceUrls available, return first one
+  if (instanceUrls?.length > 0) {
+    return instanceUrls[0];
+  }
+  
+  return null;
+}
+
 export function getCustomFieldLayoutKey(field) {
   const fieldId = typeof field === 'string'
     ? String(field || '').trim()
