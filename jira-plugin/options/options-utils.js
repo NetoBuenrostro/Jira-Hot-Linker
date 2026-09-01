@@ -35,7 +35,18 @@ export function normalizeInstanceUrl(instanceUrl) {
 export function normalizeInstanceUrls(instanceUrls) {
   const values = Array.isArray(instanceUrls) ? instanceUrls : [instanceUrls];
   const normalized = values
-    .flatMap(value => String(value || '').split(/\r?\n|\r|,/).map(entry => normalizeInstanceUrl(entry.trim())))
+    .flatMap(value => String(value || '').split(/\r?\n|\r/).map(entry => {
+      // Preserve comma-separated entries (URL,PREFIX1,PREFIX2) for parseInstanceUrlsWithPrefixes
+      // Only normalize the URL part if it exists
+      const parts = entry.trim().split(',');
+      if (!parts[0]) return '';
+      const normalizedUrl = normalizeInstanceUrl(parts[0].trim());
+      if (!normalizedUrl) return '';
+      // Return full entry with prefixes intact if present
+      return parts.length > 1
+        ? `${normalizedUrl},${parts.slice(1).join(',')}`
+        : normalizedUrl;
+    }))
     .filter(Boolean);
   return normalized.filter((value, index) => normalized.indexOf(value) === index);
 }
