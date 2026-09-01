@@ -348,11 +348,8 @@ export function createContentDisplayHelpers(options) {
     };
     try {
       linkageData = await resolveIssueLinkage(issueData);
-    } catch (error) {
-      console.warn('[Jira QuickView] Parent or epic link lookup failed', {
-        issueKey: key,
-        error: error?.message || String(error)
-      });
+    } catch {
+      // Parent and epic links are optional display data.
     }
     const issueTypeName = issueData.fields.issuetype?.name;
     const statusName = issueData.fields.status?.name;

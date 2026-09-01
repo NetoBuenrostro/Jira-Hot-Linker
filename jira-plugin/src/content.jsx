@@ -283,7 +283,6 @@ function unwrapResponse(response, defaultError = 'Request failed') {
 }
 
 async function get(url) {
-  console.debug('[Jira QuickView] GET request', url);
   return unwrapResponse(await sendMessage({action: 'get', url: url}));
 }
 
@@ -471,18 +470,8 @@ async function mainAsyncLocal() {
 
   const projectResponses = await Promise.all(INSTANCE_URLS.map(async instanceUrl => {
     try {
-      const projects = normalizeJiraProjectsResponse(await get(instanceUrl + 'rest/api/2/project'));
-      console.info('[Jira QuickView] Jira instance project keys loaded', {
-        instanceUrl,
-        projectCount: projects.length,
-        projectKeys: projects.map(project => project.key)
-      });
-      return projects;
+      return normalizeJiraProjectsResponse(await get(instanceUrl + 'rest/api/2/project'));
     } catch (ex) {
-      console.warn('[Jira QuickView] Jira instance project lookup failed', {
-        instanceUrl,
-        error: formatPageDiagnosticError(ex)
-      });
       return [];
     }
   }));
@@ -7570,43 +7559,17 @@ async function mainAsyncLocal() {
       discardDescriptionEditStateSnapshot(popupState.descriptionEditState, {deleteUploaded: true}).catch(() => {});
     }
     (async function (cancelToken) {
-      console.info('[Jira QuickView] Resolving issue instance', {
-        issueKey: key,
-        instanceUrls: INSTANCE_URLS
-      });
       const successfulIssue = await Promise.any(INSTANCE_URLS.map(async instanceUrl => {
-        const issueUrl = `${instanceUrl}rest/api/2/issue/${encodeURIComponent(key)}`;
-        console.info('[Jira QuickView] Trying Jira instance for issue', {
-          issueKey: key,
-          instanceUrl,
-          issueUrl
-        });
         try {
           const issueData = await getIssueMetaData(key, instanceUrl);
-          console.info('[Jira QuickView] Jira instance returned issue', {
-            issueKey: key,
-            instanceUrl,
-            issueId: issueData?.id || ''
-          });
           return {instanceUrl, issueData};
         } catch (error) {
-          console.warn('[Jira QuickView] Jira instance did not return issue', {
-            issueKey: key,
-            instanceUrl,
-            error: formatPageDiagnosticError(error)
-          });
           throw error;
         }
       }));
       const issueData = successfulIssue.issueData;
       INSTANCE_URL = successfulIssue.instanceUrl;
-      console.info('[Jira QuickView] Issue found', {
-        issueKey: key,
-        instanceUrl: INSTANCE_URL
-      });
-      console.debug('[Jira QuickView] Normalizing issue images', {issueKey: key});
       await normalizeIssueImages(issueData);
-      console.debug('[Jira QuickView] Issue images normalized', {issueKey: key});
       let children = [];
       let childrenJql = '';
       let childrenError = '';
@@ -7682,16 +7645,7 @@ async function mainAsyncLocal() {
         linkedIssuesState: emptyLinkedIssuesState(),
         timeTrackingEditState: createTimeTrackingEditState(issueData),
       });
-      console.info('[Jira QuickView] Popup rendered', {
-        issueKey: key,
-        instanceUrl: INSTANCE_URL
-      });
     })(cancelToken).catch((error) => {
-      console.error('[Jira QuickView] Popup loading failed', {
-        issueKey: key,
-        instanceUrl: INSTANCE_URL,
-        error: formatPageDiagnosticError(error)
-      });
       notifyJiraConnectionFailure(INSTANCE_URL, error);
       lastHoveredKey = '';
     }).finally(() => {
@@ -7724,11 +7678,6 @@ async function mainAsyncLocal() {
       if (isModifierSatisfied(e)) {
         const currentKey = resolveModifierKeyAtClientPoint(currentPointer.clientX, currentPointer.clientY);
         if (currentKey) {
-          console.info('[Jira QuickView] Jira key detected with modifier', {
-            issueKey: currentKey,
-            instanceUrls: INSTANCE_URLS,
-            page: window.location.href
-          });
           const pointerX = Number.isFinite(currentPointer.pageX) ? currentPointer.pageX : 0;
           const pointerY = Number.isFinite(currentPointer.pageY) ? currentPointer.pageY : 0;
           triggerPopupForKey(currentKey, pointerX, pointerY, true);
@@ -7796,12 +7745,6 @@ async function mainAsyncLocal() {
 
       if (size(keys)) {
         const key = keys[0].replace(' ', '-');
-        console.info('[Jira QuickView] Jira key detected on hover', {
-          issueKey: key,
-          detectedKeys: keys,
-          element: element.tagName,
-          text: normalizeSearchText(element.textContent || '')
-        });
         clearTimeout(hideTimeOut);
         triggerPopupForKey(key, e.pageX, e.pageY, false);
       }
