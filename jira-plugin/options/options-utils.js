@@ -224,6 +224,35 @@ export function findInstanceUrlByIssueKey(prefixMap, instanceUrls, issueKey) {
   return null;
 }
 
+/**
+ * Resolve instance URLs while preserving comma-separated prefixes.
+ * Handles entries like "https://example.com/,PREFIX1,PREFIX2"
+ * @param {string[]} instanceUrlsWithPrefixes - Array from normalizeInstanceUrls
+ * @returns {string[]} Resolved URLs with prefixes intact
+ */
+export function resolveInstanceUrlsWithPrefixes(instanceUrlsWithPrefixes) {
+  return (instanceUrlsWithPrefixes || []).map(entry => {
+    // Split on comma to separate URL from prefixes
+    const parts = entry.split(',');
+    if (!parts[0]) {
+      return entry;
+    }
+    
+    // Resolve only the URL part
+    const resolvedUrl = resolveInstanceUrl(parts[0].trim());
+    if (!resolvedUrl) {
+      return '';
+    }
+    
+    // Reconstruct with prefixes if present
+    if (parts.length > 1) {
+      return `${resolvedUrl},${parts.slice(1).join(',')}`;
+    }
+    
+    return resolvedUrl;
+  }).filter(Boolean);
+}
+
 export function getCustomFieldLayoutKey(field) {
   const fieldId = typeof field === 'string'
     ? String(field || '').trim()

@@ -22,6 +22,7 @@ import {
   normalizeInstanceUrls,
   normalizeInstanceUrl,
   resolveInstanceUrl,
+  resolveInstanceUrlsWithPrefixes,
   normalizeCustomFields,
   updateCustomFieldRow,
   buildOptionsSnapshot,
@@ -533,15 +534,15 @@ function ConfigPage(props) {
       return;
     }
 
-    const resolvedInstanceUrls = rawInstanceUrls.map(resolveInstanceUrl);
-    if (resolvedInstanceUrls.some(url => !url)) {
+    const resolvedInstanceUrls = resolveInstanceUrlsWithPrefixes(rawInstanceUrls);
+    if (!resolvedInstanceUrls.length) {
       setStatusTone('error');
       setStatus('Enter your Jira base URL or a recognizable Jira page URL.');
       return;
     }
 
     setInstanceUrl(resolvedInstanceUrls.join('\n'));
-    const resolvedInstanceUrl = resolvedInstanceUrls[0];
+    const resolvedInstanceUrl = resolvedInstanceUrls[0].split(',')[0]; // Extract just the URL part for single-instance compatibility
 
     const shouldPersistSimpleSyncSource = simpleSyncState.enabled || (isUrlSyncSource
       ? !!String(syncUrl || '').trim()

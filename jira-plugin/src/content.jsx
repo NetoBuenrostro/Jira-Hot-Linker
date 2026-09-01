@@ -32,12 +32,7 @@ import {createPopupQuickActions} from 'src/popup-quick-actions';
 import {createPopupCommentComposer} from 'src/popup-comment-composer';
 import {buildJiraSearchRequestUrls, isEpicLinkField, isParentLinkField, isSprintField} from 'src/jira-issue-helpers';
 import config, {buildTooltipLayoutFromDisplayFields} from 'options/config.js';
-import {
-  getConfiguredInstanceUrls,
-  selectInstanceUrl,
-  parseInstanceUrlsWithPrefixes,
-  findInstanceUrlByIssueKey
-} from 'options/options-utils';
+import {getConfiguredInstanceUrls, selectInstanceUrl} from 'options/options-utils';
 import {DEFAULT_THEME_MODE, syncDocumentTheme} from 'src/theme';
 import {copyIssueReference} from 'src/issue-reference-copy';
 import {installJiraInlineCopyButtons} from 'src/jira-inline-copy';
@@ -386,12 +381,6 @@ async function mainAsyncLocal() {
     valueOf: () => INSTANCE_URL
   };
   const INSTANCE_URLS = getConfiguredInstanceUrls(config);
-  
-  // Parse instance URLs with optional prefixes (e.g., "url,CS,JSHO")
-  const {prefixMap, instanceUrls: normalizedInstanceUrls} = parseInstanceUrlsWithPrefixes(
-    config.instanceUrls || config.instanceUrl || ''
-  );
-  
   const storedCommentSortState = await storageLocalGet({
     [COMMENT_SORT_ORDER_STORAGE_KEY]: DEFAULT_COMMENT_SORT_ORDER
   }).catch(() => ({
@@ -7570,43 +7559,14 @@ async function mainAsyncLocal() {
       discardDescriptionEditStateSnapshot(popupState.descriptionEditState, {deleteUploaded: true}).catch(() => {});
     }
     (async function (cancelToken) {
-      // Try to find instance URL by issue key prefix first
-      const targetInstanceUrl = findInstanceUrlByIssueKey(prefixMap, normalizedInstanceUrls, key);
-      
-      let successfulIssue;
-      if (targetInstanceUrl) {
-        // Try the mapped instance first
+      const successfulIssue = await Promise.any(INSTANCE_URLS.map(async instanceUrl => {
         try {
-          const issueData = await getIssueMetaData(key, targetInstanceUrl);
-          successfulIssue = {instanceUrl: targetInstanceUrl, issueData};
+          const issueData = await getIssueMetaData(key, instanceUrl);
+          return {instanceUrl, issueData};
         } catch (error) {
-          // If prefix-mapped instance fails, try remaining instances as fallback
-          const remainingInstances = normalizedInstanceUrls.filter(url => url !== targetInstanceUrl);
-          if (remainingInstances.length > 0) {
-            successfulIssue = await Promise.any(remainingInstances.map(async instanceUrl => {
-              try {
-                const issueData = await getIssueMetaData(key, instanceUrl);
-                return {instanceUrl, issueData};
-              } catch (error) {
-                throw error;
-              }
-            }));
-          } else {
-            throw error;
-          }
+          throw error;
         }
-      } else {
-        // No prefix mapping found, try all configured instances
-        successfulIssue = await Promise.any(INSTANCE_URLS.map(async instanceUrl => {
-          try {
-            const issueData = await getIssueMetaData(key, instanceUrl);
-            return {instanceUrl, issueData};
-          } catch (error) {
-            throw error;
-          }
-        }));
-      }
-      
+      }));
       const issueData = successfulIssue.issueData;
       INSTANCE_URL = successfulIssue.instanceUrl;
       await normalizeIssueImages(issueData);
