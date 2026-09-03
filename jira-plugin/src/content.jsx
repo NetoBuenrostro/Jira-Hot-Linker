@@ -7568,10 +7568,11 @@ async function mainAsyncLocal() {
     }
     (async function (cancelToken) {
       const preferredInstanceUrl = findInstanceUrlByIssueKey(INSTANCE_PREFIX_MAP, INSTANCE_URLS, key);
-      const candidateInstanceUrls = preferredInstanceUrl
-        ? [preferredInstanceUrl, ...INSTANCE_URLS.filter(instanceUrl => instanceUrl !== preferredInstanceUrl)]
-        : INSTANCE_URLS;
-      const successfulIssue = await Promise.any(candidateInstanceUrls.map(async instanceUrl => {
+      if (!preferredInstanceUrl) {
+        loadingPopupKey = null;
+        return;
+      }
+      const successfulIssue = await Promise.any([preferredInstanceUrl].map(async instanceUrl => {
         try {
           const issueData = await getIssueMetaData(key, instanceUrl);
           return {instanceUrl, issueData};

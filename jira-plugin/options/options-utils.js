@@ -214,24 +214,19 @@ export function extractIssuePrefixFromKey(issueKey) {
 
 /**
  * Find the instance URL for an issue key using prefix mapping.
- * Falls back to configured instances if no prefix match found.
+ * No fallback: only exact prefix matches are allowed.
  * @param {Map} prefixMap - Map of prefix -> instanceUrl
- * @param {string[]} instanceUrls - Fallback list of instance URLs
+ * @param {string[]} instanceUrls - Unused; kept for signature compatibility
  * @param {string} issueKey - Issue key to look up
  * @returns {string|null} Instance URL or null if not found
  */
 export function findInstanceUrlByIssueKey(prefixMap, instanceUrls, issueKey) {
   const prefix = extractIssuePrefixFromKey(issueKey);
-  
+
   if (prefix && prefixMap.has(prefix)) {
     return prefixMap.get(prefix);
   }
-  
-  // Fallback: if no prefix match and instanceUrls available, return first one
-  if (instanceUrls?.length > 0) {
-    return instanceUrls[0];
-  }
-  
+
   return null;
 }
 
