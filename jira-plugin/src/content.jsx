@@ -4942,7 +4942,7 @@ async function mainAsyncLocal() {
     buildLinkedIssuesPanelView: (state, issueData) => buildLinkedIssuesPanelView(state, issueData, {
       buildLinkHoverTitle,
       buildUserView,
-      instanceUrl: INSTANCE_URL,
+      instanceUrl: INSTANCE_URL_REF,
     }),
     buildQuickActionViewData,
     buildTimeTrackingSectionPresentation,
@@ -4962,7 +4962,7 @@ async function mainAsyncLocal() {
     getTransitionOptions,
     getVisibleSprintsForDisplay,
     hasLabelSuggestionSupport,
-    instanceUrl: INSTANCE_URL,
+    instanceUrl: INSTANCE_URL_REF,
     layoutContentBlocks,
     loaderGifUrl,
     normalizeCommentSortOrder,
